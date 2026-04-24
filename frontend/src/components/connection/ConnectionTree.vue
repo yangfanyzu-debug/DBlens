@@ -18,7 +18,7 @@
             <el-icon><Connection /></el-icon>
           </div>
           <span class="conn-name">{{ conn.name }}</span>
-          <el-tag size="small" class="db-tag" :type="dbTagType(conn.db_type) || undefined">{{ conn.db_type }}</el-tag>
+          <el-tag size="small" class="db-tag" :type="dbTagType(conn.db_type)">{{ conn.db_type }}</el-tag>
         </div>
       </div>
     </div>
@@ -174,8 +174,8 @@ async function onDelete() {
 .conn-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 14px 7px 20px;
+  gap: 6px;
+  padding: 6px 12px 6px 16px;
   min-height: 28px;
   cursor: pointer;
   font-size: 13px;
@@ -201,13 +201,37 @@ async function onDelete() {
 .conn-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .db-tag {
-  font-size: 9px;
+  font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  opacity: 0.9;
+  letter-spacing: 0.4px;
   border: none;
-  min-width: 38px;
-  justify-content: center;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+:deep(.db-tag) {
+  color: #fff !important;
+}
+:deep(.db-tag.el-tag--info) {
+  background: var(--text-muted);
+  color: #fff !important;
+}
+:deep(.db-tag.el-tag--success) {
+  background: var(--accent-green);
+  color: #fff !important;
+}
+:deep(.db-tag.el-tag--warning) {
+  background: var(--accent-orange);
+  color: #fff !important;
+}
+:deep(.db-tag.el-tag--danger) {
+  background: var(--accent-red);
+  color: #fff !important;
+}
+:deep(.db-tag.el-tag--primary) {
+  background: var(--accent-blue);
+  color: #fff !important;
 }
 
 .empty {

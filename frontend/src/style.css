@@ -161,6 +161,17 @@ code, pre, .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
 .el-button--primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px var(--glow-blue);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: #fff;
+}
+
+.el-button--primary:active {
+  transform: translateY(0);
+}
+
+.el-button:active {
+  transform: translateY(0);
 }
 .el-button--small { font-size: 12px; padding: 6px 12px; }
 .el-divider { border-color: var(--border-muted) !important; margin: 20px 0 !important; }

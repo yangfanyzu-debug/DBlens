@@ -283,7 +283,8 @@ async function commitChanges() {
   margin-right: 12px;
   align-self: center;
 }
-.cell-content { min-height: 20px; cursor: default; }
+.cell-content { min-height: 20px; cursor: default; overflow: hidden; display: block; }
+.cell-content span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 20px; }
 .cell-modified { background: #fef3c7; border-radius: 4px; padding: 1px 4px; }
 .preview-sql { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
 .preview-sql code { font-size: 12px; word-break: break-all; }
@@ -293,6 +294,7 @@ async function commitChanges() {
   --el-table-header-bg-color: var(--bg-secondary);
   --el-table-row-hover-bg-color: var(--glow-blue);
   background: var(--bg-primary);
+  table-layout: fixed;
 }
 
 /* 表头加粗 + 背景 */
@@ -309,6 +311,7 @@ async function commitChanges() {
 
 :deep(.el-table td.el-table__cell) {
   color: var(--text-primary);
+  overflow: hidden;
 }
 
 :deep(.el-table .el-table__inner-wrapper::before) {

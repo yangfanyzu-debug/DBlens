@@ -22,13 +22,18 @@
           <Plus style="width:14px;height:14px" />
         </button>
       </el-tooltip>
+      <el-tooltip content="问题记录" placement="bottom">
+        <a href="https://www.baidu.com" target="_blank" rel="noopener" class="action-btn">
+          <QuestionFilled style="width:14px;height:14px" />
+        </a>
+      </el-tooltip>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { EditPen, Grid, Close, Plus } from '@element-plus/icons-vue'
+import { EditPen, Grid, Close, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { useTabsStore } from '@/stores/tabs'
 import { useConnectionsStore } from '@/stores/connections'
 
@@ -48,7 +53,7 @@ function newEditor() {
   height: 42px;
   padding: 0 8px 0 10px;
   background: linear-gradient(180deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-muted);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -141,6 +146,7 @@ function newEditor() {
   cursor: pointer;
   border-radius: 8px;
   transition: all 0.12s ease;
+  text-decoration: none;
 }
 .action-btn:hover {
   background: var(--bg-tertiary);
