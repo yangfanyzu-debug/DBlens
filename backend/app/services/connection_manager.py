@@ -92,6 +92,63 @@ def ensure_engine(conn_id: str):
             return get_engine(conn_id)
 
 
+def test_connection_from_form(data: dict) -> Tuple[bool, str, int]:
+    """Test connection using raw form data (no DB save required)."""
+    tunnel = None
+    local_port = None
+    try:
+        db_type = data.get("db_type")
+        host = data.get("host") or "127.0.0.1"
+        port = data.get("port") or (3306 if db_type == "mysql" else 5432)
+        username = data.get("username") or ""
+        password = data.get("password") or ""
+        database = data.get("database") or ""
+        ssh_enabled = data.get("ssh_enabled", False)
+        ssh_host = data.get("ssh_host") or ""
+        ssh_port = data.get("ssh_port") or 22
+        ssh_username = data.get("ssh_username") or ""
+        ssh_password = data.get("ssh_password") or ""
+
+        if ssh_enabled:
+            tunnel = _start_tunnel_from_form(host, port, ssh_host, ssh_port, ssh_username, ssh_password, data.get("ssh_private_key"))
+            local_port = tunnel.local_bind_port
+
+        if db_type == "sqlite":
+            url = f"sqlite:///{database}"
+        elif db_type == "mysql":
+            url = f"mysql+pymysql://{username}:{password}@{('127.0.0.1' if local_port else host)}:{local_port or port}/{database}"
+        elif db_type == "postgresql":
+            url = f"postgresql+psycopg2://{username}:{password}@{('127.0.0.1' if local_port else host)}:{local_port or port}/{database}"
+        else:
+            return False, f"Unsupported db_type: {db_type}", 0
+
+        engine = create_engine(url, pool_pre_ping=True)
+        start = time.monotonic()
+        with engine.connect() as c:
+            c.execute(text("SELECT 1"))
+        latency = int((time.monotonic() - start) * 1000)
+        engine.dispose()
+        return True, f"Connected in {latency}ms", latency
+    except Exception as e:
+        return False, str(e), 0
+    finally:
+        if tunnel:
+            tunnel.stop()
+
+
+def _start_tunnel_from_form(target_host: str, target_port: int, ssh_host: str, ssh_port: int, ssh_username: str, ssh_password: str, ssh_private_key: str | None):
+    from sshtunnel import SSHTunnelForwarder
+    tunnel = SSHTunnelForwarder(
+        (ssh_host, ssh_port),
+        ssh_username=ssh_username,
+        ssh_password=ssh_password,
+        ssh_pkey=ssh_private_key,
+        remote_bind_address=(target_host, target_port),
+    )
+    tunnel.start()
+    return tunnel
+
+
 def test_connection(conn: Connection) -> Tuple[bool, str, int]:
     tunnel = None
     local_port = None

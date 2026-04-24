@@ -18,6 +18,13 @@ async def create_connection(data: ConnectionCreate, db: AsyncSession = Depends(g
     return await connection_crud.create_connection(db, data)
 
 
+@router.post("/test-form", response_model=TestResult)
+async def test_connection_form(data: ConnectionCreate):
+    """Test a connection using form data before saving."""
+    success, message, latency = connection_manager.test_connection_from_form(data.model_dump())
+    return TestResult(success=success, message=message, latency_ms=latency)
+
+
 @router.get("/{conn_id}", response_model=ConnectionOut)
 async def get_connection(conn_id: str, db: AsyncSession = Depends(get_db)):
     conn = await connection_crud.get_connection(db, conn_id)

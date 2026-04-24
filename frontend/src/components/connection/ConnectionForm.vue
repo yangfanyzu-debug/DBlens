@@ -82,7 +82,7 @@ import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { useConnectionsStore } from '@/stores/connections'
-import { testConnection } from '@/api/connections'
+import { testConnection, testConnectionForm } from '@/api/connections'
 import type { ConnectionForm } from '@/api/connections'
 
 const props = defineProps<{ visible: boolean; initial?: any }>()
@@ -127,13 +127,11 @@ async function onSave() {
 }
 
 async function onTest() {
-  if (!props.initial?.id) {
-    ElMessage.warning('请先保存连接再测试')
-    return
-  }
   testing.value = true
   try {
-    const r = await testConnection(props.initial.id)
+    const r = props.initial?.id
+      ? await testConnection(props.initial.id)
+      : await testConnectionForm(form.value)
     ElMessage[r.success ? 'success' : 'error'](r.message)
   } catch (e: any) {
     ElMessage.error(e.message)

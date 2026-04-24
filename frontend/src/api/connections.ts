@@ -42,5 +42,6 @@ export const createConnection = (data: ConnectionForm) => http.post<Connection>(
 export const updateConnection = (id: string, data: ConnectionForm) => http.put<Connection>(`/connections/${id}`, data).then(r => r.data)
 export const deleteConnection = (id: string) => http.delete(`/connections/${id}`)
 export const testConnection = (id: string) => http.post<{ success: boolean; message: string; latency_ms: number }>(`/connections/${id}/test`).then(r => r.data)
+export const testConnectionForm = (data: ConnectionForm) => http.post<{ success: boolean; message: string; latency_ms: number }>('/connections/test-form', data).then(r => r.data)
 export const openConnection = (id: string) => http.post(`/connections/${id}/connect`)
 export const closeConnection = (id: string) => http.delete(`/connections/${id}/disconnect`)
