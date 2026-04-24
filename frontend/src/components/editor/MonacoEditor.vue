@@ -7,12 +7,14 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as monaco from 'monaco-editor'
 import { format as sqlFormat } from 'sql-formatter'
 import { useSchemaStore } from '@/stores/schema'
+import { useThemeStore } from '@/stores/theme'
 
 const props = defineProps<{ connId: string; database: string }>()
 const emit = defineEmits<{ (e: 'execute', sql: string): void }>()
 
 const containerRef = ref<HTMLElement>()
 const schemaStore = useSchemaStore()
+const themeStore = useThemeStore()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let completionDisposable: monaco.IDisposable | null = null
 
@@ -41,7 +43,7 @@ onMounted(() => {
   editor = monaco.editor.create(containerRef.value, {
     value: '-- 在此输入 SQL\n',
     language: 'sql',
-    theme: 'vs',
+    theme: themeStore.current === 'dark' ? 'vs-dark' : 'vs',
     fontSize: 14,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
@@ -58,6 +60,10 @@ onMounted(() => {
 })
 
 watch(() => [props.connId, props.database], registerCompletion)
+
+watch(() => themeStore.current, (t) => {
+  editor?.updateOptions({ theme: t === 'dark' ? 'vs-dark' : 'vs' })
+})
 
 onUnmounted(() => {
   completionDisposable?.dispose()

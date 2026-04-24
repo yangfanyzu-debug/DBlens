@@ -242,46 +242,82 @@ async function commitChanges() {
 </script>
 
 <style scoped>
-.data-grid { display: flex; flex-direction: column; height: 100%; }
-.toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--el-border-color); flex-shrink: 0; }
+.data-grid {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-primary);
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-default);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  flex-shrink: 0;
+}
 .toolbar-sep {
   width: 1px;
   height: 18px;
-  background: var(--el-border-color);
+  background: var(--border-default);
   margin: 0 4px;
 }
 .total-info {
   margin-left: auto;
   font-size: 13px;
   font-weight: 600;
-  color: var(--el-text-color-regular);
+  color: var(--text-secondary);
 }
 .pagination {
   display: flex;
   align-items: center;
-  padding: 6px 12px;
-  border-top: 1px solid var(--el-border-color);
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-default);
+  background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
   flex-shrink: 0;
 }
 .total-label {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   margin-right: 12px;
   align-self: center;
 }
 .cell-content { min-height: 20px; cursor: default; }
-.cell-modified { background: #fef3c7; border-radius: 2px; padding: 0 2px; }
+.cell-modified { background: #fef3c7; border-radius: 4px; padding: 1px 4px; }
 .preview-sql { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
 .preview-sql code { font-size: 12px; word-break: break-all; }
+
+:deep(.el-table) {
+  --el-table-border-color: var(--border-muted);
+  --el-table-header-bg-color: var(--bg-secondary);
+  --el-table-row-hover-bg-color: var(--glow-blue);
+  background: var(--bg-primary);
+}
 
 /* 表头加粗 + 背景 */
 :deep(.el-table__header-wrapper th) {
   font-weight: 600;
-  background: var(--el-bg-color) !important;
+  background: var(--bg-secondary) !important;
+  color: var(--text-secondary);
 }
 
 /* 单元格内边距 */
 :deep(.el-table td .cell) {
   padding: 4px 8px;
+}
+
+:deep(.el-table td.el-table__cell) {
+  color: var(--text-primary);
+}
+
+:deep(.el-table .el-table__inner-wrapper::before) {
+  display: none;
+}
+
+:deep(.el-pagination) {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-bg-color: var(--bg-primary);
+  --el-pagination-hover-color: var(--accent-blue);
 }
 </style>

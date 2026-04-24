@@ -18,7 +18,7 @@
             <el-icon><Connection /></el-icon>
           </div>
           <span class="conn-name">{{ conn.name }}</span>
-          <el-tag size="small" class="db-tag" :type="dbTagType(conn.db_type)">{{ conn.db_type }}</el-tag>
+          <el-tag size="small" class="db-tag" :type="dbTagType(conn.db_type) || undefined">{{ conn.db_type }}</el-tag>
         </div>
       </div>
     </div>
@@ -89,7 +89,7 @@ const grouped = computed(() => {
 })
 
 function dbTagType(db_type: string) {
-  if (db_type === 'mysql') return ''
+  if (db_type === 'mysql') return 'primary'
   if (db_type === 'postgresql') return 'success'
   return 'info'
 }
@@ -204,8 +204,10 @@ async function onDelete() {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  opacity: 0.7;
+  opacity: 0.9;
   border: none;
+  min-width: 38px;
+  justify-content: center;
 }
 
 .empty {

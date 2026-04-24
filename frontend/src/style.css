@@ -1,16 +1,190 @@
-* {
-  box-sizing: border-box;
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ─── Light Theme (default — Element Plus) ─── */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #eaeef2;
+  --bg-elevated: #ffffff;
+  --shell-backdrop: #f3f6fa;
+  --shell-backdrop-soft: #eef3f8;
+  --shell-sidebar-bg: #f6f8fa;
+  --shell-sidebar-tint: #fbfcfd;
+  --shell-main-bg: #ffffff;
+  --shell-main-tint: #ffffff;
+  --shell-hover: rgba(31, 35, 40, 0.04);
+  --shell-shadow: 0 14px 40px rgba(31, 35, 40, 0.08);
+  --shell-shadow-strong: 0 1px 0 rgba(208, 215, 222, 0.8), 0 12px 32px rgba(31, 35, 40, 0.08);
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-muted: #8b949e;
+  --accent-blue: #0969da;
+  --accent-green: #1a7f37;
+  --accent-purple: #8250df;
+  --accent-orange: #9a6700;
+  --accent-red: #cf222e;
+  --border-default: #d0d7de;
+  --border-muted: #eaeef2;
+  --glow-blue: rgba(9, 105, 218, 0.1);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --el-color-primary: #0969da;
+  --el-color-primary-light-3: #ddf4ff;
+  --el-color-primary-light-5: #bde0fe;
+  --el-color-primary-light-7: #54aeff;
+  --el-color-primary-light-8: #218bff;
+  --el-color-primary-light-9: #0969da;
+  --el-color-success: #1a7f37;
+  --el-color-danger: #cf222e;
+  --el-color-warning: #9a6700;
+  --el-color-info: #656d76;
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f6f8fa;
+  --el-bg-color-overlay: #ffffff;
+  --el-text-color-primary: #1f2328;
+  --el-text-color-regular: #656d76;
+  --el-text-color-secondary: #8b949e;
+  --el-text-color-placeholder: #8b949e;
+  --el-text-color-disabled: #c1c7cd;
+  --el-border-color: #d0d7de;
+  --el-border-color-light: #e1e4e8;
+  --el-border-color-lighter: #eaeef2;
+  --el-border-color-extra-light: #f6f8fa;
+  --el-fill-color-blank: #ffffff;
+  --el-fill-color: #f6f8fa;
+  --el-fill-color-light: #f6f8fa;
+  --el-fill-color-lighter: #f6f8fa;
+  --el-mask-color: rgba(0, 0, 0, 0.5);
+  --el-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --el-box-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+/* ─── Dark Theme ─── */
+.theme-dark {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --bg-elevated: #1c2128;
+  --shell-backdrop: #0f141b;
+  --shell-backdrop-soft: #151b22;
+  --shell-sidebar-bg: #161b22;
+  --shell-sidebar-tint: #1b2129;
+  --shell-main-bg: #0d1117;
+  --shell-main-tint: #11161d;
+  --shell-hover: rgba(240, 246, 252, 0.06);
+  --shell-shadow: 0 20px 44px rgba(1, 4, 9, 0.28);
+  --shell-shadow-strong: 0 1px 0 rgba(48, 54, 61, 0.9), 0 18px 36px rgba(1, 4, 9, 0.32);
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --accent-blue: #58a6ff;
+  --accent-green: #3fb950;
+  --accent-purple: #bc8cff;
+  --accent-orange: #d29922;
+  --accent-red: #f85149;
+  --border-default: #30363d;
+  --border-muted: #21262d;
+  --glow-blue: rgba(88, 166, 255, 0.15);
+
+  --el-color-primary: #58a6ff;
+  --el-color-primary-light-3: #1f6feb;
+  --el-color-primary-light-5: #388bfd;
+  --el-color-primary-light-7: #58a6ff;
+  --el-color-primary-light-8: #79b8ff;
+  --el-color-primary-light-9: #c8e1ff;
+  --el-color-success: #3fb950;
+  --el-color-danger: #f85149;
+  --el-color-warning: #d29922;
+  --el-color-info: #8b949e;
+  --el-bg-color: #0d1117;
+  --el-bg-color-page: #0d1117;
+  --el-bg-color-overlay: #1c2128;
+  --el-text-color-primary: #e6edf3;
+  --el-text-color-regular: #8b949e;
+  --el-text-color-secondary: #6e7681;
+  --el-text-color-placeholder: #484f58;
+  --el-text-color-disabled: #484f58;
+  --el-border-color: #30363d;
+  --el-border-color-light: #21262d;
+  --el-border-color-lighter: #21262d;
+  --el-border-color-extra-light: #161b22;
+  --el-fill-color-blank: #161b22;
+  --el-fill-color: #21262d;
+  --el-fill-color-light: #21262d;
+  --el-fill-color-lighter: #1c2128;
+  --el-mask-color: rgba(0, 0, 0, 0.7);
+  --el-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --el-box-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+* { box-sizing: border-box; }
+
 html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
+  margin: 0; padding: 0; height: 100%; overflow: hidden;
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--shell-backdrop);
+  color: var(--text-primary);
 }
 
 #app {
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  background: linear-gradient(180deg, var(--shell-backdrop-soft) 0%, var(--shell-backdrop) 100%);
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+h1, h2, h3, h4, h5, h6 { font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; margin: 0; }
+code, pre, .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+
+.el-button {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border-color: var(--border-default);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+}
+.el-button:hover {
+  border-color: var(--text-muted);
+  background: var(--el-fill-color-light);
+}
+.el-button:focus-visible {
+  box-shadow: 0 0 0 3px var(--glow-blue);
+}
+.el-button--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--glow-blue);
+}
+.el-button--small { font-size: 12px; padding: 6px 12px; }
+.el-divider { border-color: var(--border-muted) !important; margin: 20px 0 !important; }
+.el-message { border-radius: var(--radius-md); }
+.el-alert { border-radius: var(--radius-md); }
+.el-tooltip__trigger { outline: none; }
+
+/* Global focus ring */
+:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+
+/* Clickable cursor feedback */
+button, [role="button"], .el-button, .el-tree-node__content,
+.tab-item, .conn-item, .action-btn, .close-btn, .tool-btn,
+.ctx-item, .group-header, .el-select, .el-pager li,
+.el-tabs__item {
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

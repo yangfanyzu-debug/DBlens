@@ -8,7 +8,6 @@
       :data="tableData"
       size="small"
       border
-      stripe
       height="100%"
       style="width:100%"
     >

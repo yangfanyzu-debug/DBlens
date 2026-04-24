@@ -55,16 +55,17 @@ function stopResize() {
   display: flex;
   height: 100vh;
   overflow: hidden;
+  background: linear-gradient(180deg, var(--shell-backdrop-soft) 0%, var(--shell-backdrop) 120px);
 }
 .sidebar {
   position: relative;
   /* width/min-width/max-width handled by inline style */
-  background: var(--bg-secondary);
+  background: linear-gradient(180deg, var(--shell-sidebar-tint) 0%, var(--shell-sidebar-bg) 100%);
   border-right: 1px solid var(--border-default);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 12px rgba(0,0,0,0.3);
+  box-shadow: var(--shell-shadow-strong);
   flex-shrink: 0;
 }
 .drag-handle {
@@ -75,17 +76,33 @@ function stopResize() {
   width: 4px;
   cursor: col-resize;
   background: transparent;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
   z-index: 10;
 }
+.drag-handle::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(139, 148, 158, 0.55);
+  opacity: 0.55;
+}
 .drag-handle:hover {
+  background: var(--glow-blue);
+}
+.drag-handle:hover::before {
   background: var(--accent-blue);
+  opacity: 0.95;
 }
 .main-area {
   flex: 1;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
+  background: linear-gradient(180deg, var(--shell-main-tint) 0%, var(--shell-main-bg) 100%);
 }
 </style>
