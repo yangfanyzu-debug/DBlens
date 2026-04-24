@@ -21,25 +21,11 @@ def _split_statements(sql: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-async def execute_query(conn_id: str, database: str, sql: str, query_id: str):
-    print(f"[QE] Starting query {query_id} for conn {conn_id}")
-    try:
-        await ws_manager.send(query_id, {"type": "status", "query_id": query_id, "status": "running", "message": "Query started"})
-    except Exception as e:
-        print(f"[QE] Failed to send status: {e}")
-        return
-
-    try:
-        engine = ensure_engine(conn_id)
-        db_type = engine.dialect.name
-        print(f"[QE] Got engine for {conn_id}, dialect={db_type}")
-    except Exception as e:
-        print(f"[QE] get_engine failed: {e}")
-        await ws_manager.send(query_id, {
-            "type": "result", "query_id": query_id, "status": "error",
-            "statements": [], "total_ms": 0, "error": f"Connection not open: {e}",
-        })
-        return
+def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str):
+    """Synchronous query runner — runs in thread pool to avoid blocking event loop."""
+    engine = ensure_engine(conn_id)
+    db_type = engine.dialect.name
+    print(f"[QE] Got engine for {conn_id}, dialect={db_type}")
 
     statements = _split_statements(sql)
     results = []
@@ -81,31 +67,51 @@ async def execute_query(conn_id: str, database: str, sql: str, query_id: str):
             conn.commit()
 
         total_ms = int((time.monotonic() - total_start) * 1000)
-        print(f"[QE] Query done, sending result for {query_id}")
-        await ws_manager.send(query_id, {
+        return {
             "type": "result", "query_id": query_id,
             "status": "success", "statements": results,
             "total_ms": total_ms, "error": None,
-        })
+        }
     except Exception as e:
-        print(f"[QE] Query error: {e}")
         import traceback; traceback.print_exc()
-        await ws_manager.send(query_id, {
+        return {
             "type": "result", "query_id": query_id,
             "status": "error", "statements": results,
             "total_ms": int((time.monotonic() - total_start) * 1000),
             "error": str(e),
-        })
+        }
     finally:
         _running.pop(query_id, None)
+
+
+async def execute_query(conn_id: str, database: str, sql: str, query_id: str):
+    print(f"[QE] Starting query {query_id} for conn {conn_id}")
+    try:
+        await ws_manager.send(query_id, {"type": "status", "query_id": query_id, "status": "running", "message": "Query started"})
+    except Exception as e:
+        print(f"[QE] Failed to send status: {e}")
+        return
+
+    try:
+        result = await asyncio.to_thread(_run_query_sync, conn_id, database, sql, query_id)
+        print(f"[QE] Query done, sending result for {query_id}")
+        await ws_manager.send(query_id, result)
+    except Exception as e:
+        print(f"[QE] Outer error: {e}")
+        import traceback; traceback.print_exc()
+        try:
+            await ws_manager.send(query_id, {
+                "type": "result", "query_id": query_id, "status": "error",
+                "statements": [], "total_ms": 0, "error": f"Unexpected error: {e}",
+            })
+        except:
+            pass
 
 
 async def kill_query(query_id: str):
     thread_id = _running.get(query_id)
     if not thread_id:
         return
-    # We need a separate connection to issue KILL — get any available engine
-    # This is a best-effort kill; the query may have already finished
     _running.pop(query_id, None)
     await ws_manager.send(query_id, {
         "type": "result",
