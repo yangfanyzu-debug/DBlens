@@ -23,5 +23,14 @@ dist/
 # Logs
 *.log
 
+# Claude Code
+.claude/
+
+# Agents
+.agents/
+
+# Playwright
+.playwright-cli/
+
 # Misc
 .DS_Store
