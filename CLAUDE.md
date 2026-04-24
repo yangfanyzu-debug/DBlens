@@ -63,3 +63,36 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+---
+
+## 项目启动方式
+
+### 后端（必须在虚拟环境中运行）
+
+```bash
+cd backend
+./venv/Scripts/python.exe run.py
+# 访问：http://localhost:8000
+```
+
+> 禁止直接用系统 Python 运行，避免依赖版本冲突导致 `async_sessionmaker` 等导入错误。
+
+### 前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+# 访问：http://localhost:5173（或终端显示的端口）
+```
+
+### 同时启动前后端（后台运行）
+
+```bash
+# 终端 1 - 后端
+cd backend && ./venv/Scripts/python.exe run.py
+
+# 终端 2 - 前端
+cd frontend && npm run dev
+```
