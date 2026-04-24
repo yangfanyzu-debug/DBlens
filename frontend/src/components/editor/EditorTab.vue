@@ -114,7 +114,15 @@ onUnmounted(() => wsClient?.stop())
 .editor-tab { display: flex; flex-direction: column; height: 100%; }
 .editor-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .editor-pane { overflow: hidden; }
-.resize-handle { height: 6px; background: var(--el-border-color); cursor: row-resize; flex-shrink: 0; }
-.resize-handle:hover { background: var(--el-color-primary-light-7); }
+.resize-handle {
+  height: 10px;
+  background: var(--el-border-color);
+  cursor: row-resize;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+.resize-handle:hover {
+  background: var(--accent-blue);
+}
 .results-pane { overflow: hidden; }
 </style>
