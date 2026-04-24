@@ -17,9 +17,10 @@
       </div>
     </div>
     <div class="tab-actions">
-      <el-tooltip content="新建 SQL 编辑器" placement="bottom">
+      <el-tooltip content="新建查询" placement="bottom">
         <button class="action-btn" @click="newEditor">
           <Plus style="width:14px;height:14px" />
+          <span class="btn-label">新建查询</span>
         </button>
       </el-tooltip>
       <el-tooltip content="问题记录" placement="bottom">
@@ -138,8 +139,8 @@ function newEditor() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
   height: 28px;
+  padding: 0 8px;
   border: 1px solid transparent;
   background: var(--bg-primary);
   color: var(--text-muted);
@@ -156,5 +157,12 @@ function newEditor() {
 .action-btn:focus-visible {
   outline: 2px solid var(--glow-blue);
   outline-offset: 1px;
+}
+
+/* 新建查询按钮支持文字 */
+.action-btn .btn-label {
+  font-size: 12px;
+  white-space: nowrap;
+  margin-left: 4px;
 }
 </style>

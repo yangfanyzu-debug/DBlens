@@ -9,7 +9,7 @@
       :node-contextmenu="onContextMenu"
       @node-click="onNodeClick"
       highlight-current
-      :expand-on-click-node="false"
+      :expand-on-click-node="true"
     >
       <template #default="{ node, data }">
         <span class="tree-node">
