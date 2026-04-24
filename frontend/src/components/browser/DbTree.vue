@@ -1,6 +1,7 @@
 <template>
   <div class="db-tree">
     <el-tree
+      ref="treeRef"
       :data="treeData"
       :props="{ label: 'label', children: 'children', isLeaf: 'isLeaf' }"
       lazy
@@ -30,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
 import { Grid, Document, View, InfoFilled, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as dbApi from '@/api/databases'
@@ -44,13 +45,32 @@ const schemaStore = useSchemaStore()
 const treeData = ref<any[]>([])
 const menuData = ref<any>(null)
 const menuStyle = ref({})
+const treeRef = ref<any>(null)
 
 watch(() => props.connId, () => { treeData.value = [] })
+
+onMounted(async () => {
+  // Initial level-0 load (databases) happens via lazy load trigger.
+  // Wait for render then auto-expand all database nodes.
+  await nextTick()
+  expandAllDatabases()
+})
+
+function expandAllDatabases() {
+  if (!treeRef.value?.store) return
+  const root = treeRef.value.store.state.root
+  if (!root) return
+  for (const child of root.childNodes) {
+    treeRef.value.store.expandNode(child)
+  }
+}
 
 async function loadNode(node: any, resolve: (data: any[]) => void) {
   if (node.level === 0) {
     const dbs = await dbApi.listDatabases(props.connId)
     resolve(dbs.map((d: string) => ({ label: d, nodeType: 'database', connId: props.connId, database: d })))
+    await nextTick()
+    expandAllDatabases()
     return
   }
   if (node.data.nodeType === 'database') {
