@@ -28,7 +28,7 @@
     </div>
 
     <!-- context menu -->
-    <div v-if="menuConn" class="ctx-menu" :style="menuStyle">
+    <div v-if="menuConn && authStore.isAdmin" class="ctx-menu" :style="menuStyle">
       <div class="ctx-item" @click="onEdit">
         <el-icon><Edit /></el-icon> 编辑
       </div>
@@ -49,11 +49,13 @@ import { storeToRefs } from 'pinia'
 import { CaretRight, Connection, DocumentAdd, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useConnectionsStore } from '@/stores/connections'
+import { useAuthStore } from '@/stores/auth'
 import ConnectionForm from './ConnectionForm.vue'
 
 const emit = defineEmits<{ (e: 'open-db-tree', connId: string): void }>()
 
 const store = useConnectionsStore()
+const authStore = useAuthStore()
 const { connections, activeConnId } = storeToRefs(store)
 
 const expanded = reactive<Record<string, boolean>>({})
@@ -108,6 +110,7 @@ async function onConnect(conn: any) {
 }
 
 function showMenu(e: MouseEvent, conn: any) {
+  if (!authStore.isAdmin) return
   menuConn.value = conn
   menuStyle.value = { top: e.clientY + 'px', left: e.clientX + 'px' }
 }

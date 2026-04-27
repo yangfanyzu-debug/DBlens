@@ -15,7 +15,7 @@
         </div>
       </div>
       <div class="header-actions">
-        <el-button size="small" type="primary" @click="showForm = true" class="new-btn">
+        <el-button v-if="authStore.isAdmin" size="small" type="primary" @click="showForm = true" class="new-btn">
           <Plus style="width:14px;height:14px" /> 新建
         </el-button>
       </div>
@@ -47,6 +47,7 @@
 import { ref, watch } from 'vue'
 import { Plus, CaretBottom } from '@element-plus/icons-vue'
 import { useConnectionsStore } from '@/stores/connections'
+import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
 import ConnectionTree from '@/components/connection/ConnectionTree.vue'
 import DbTree from '@/components/browser/DbTree.vue'
@@ -54,6 +55,7 @@ import ConnectionForm from '@/components/connection/ConnectionForm.vue'
 
 const showForm = ref(false)
 const store = useConnectionsStore()
+const authStore = useAuthStore()
 const { activeConnId, connections } = storeToRefs(store)
 const dbPanelOpen = ref(false)
 

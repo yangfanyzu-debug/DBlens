@@ -71,8 +71,13 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="onTest" :loading="testing">测试连接</el-button>
-      <el-button type="primary" @click="onSave" :loading="saving">保存</el-button>
+      <div class="drawer-footer">
+        <span v-if="!authStore.isAdmin" class="drawer-tip">只有管理员可以维护连接配置</span>
+        <div class="drawer-actions">
+          <el-button @click="onTest" :loading="testing" :disabled="!authStore.isAdmin">测试连接</el-button>
+          <el-button type="primary" @click="onSave" :loading="saving" :disabled="!authStore.isAdmin">保存</el-button>
+        </div>
+      </div>
     </template>
   </el-drawer>
 </template>
@@ -82,6 +87,7 @@ import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { useConnectionsStore } from '@/stores/connections'
+import { useAuthStore } from '@/stores/auth'
 import { testConnection, testConnectionForm } from '@/api/connections'
 import type { ConnectionForm } from '@/api/connections'
 
@@ -89,6 +95,7 @@ const props = defineProps<{ visible: boolean; initial?: any }>()
 const emit = defineEmits<{ (e: 'update:visible', v: boolean): void; (e: 'saved'): void }>()
 
 const store = useConnectionsStore()
+const authStore = useAuthStore()
 const visible = computed({ get: () => props.visible, set: v => emit('update:visible', v) })
 const isEdit = computed(() => !!props.initial?.id)
 const saving = ref(false)
@@ -112,6 +119,10 @@ watch(() => props.initial, (v) => {
 function reset() { form.value = defaultForm() }
 
 async function onSave() {
+  if (!authStore.isAdmin) {
+    ElMessage.error('只有管理员可以维护连接配置')
+    return
+  }
   saving.value = true
   try {
     if (isEdit.value) await store.update(props.initial.id, form.value)
@@ -127,6 +138,10 @@ async function onSave() {
 }
 
 async function onTest() {
+  if (!authStore.isAdmin) {
+    ElMessage.error('只有管理员可以维护连接配置')
+    return
+  }
   testing.value = true
   try {
     const r = props.initial?.id
@@ -140,3 +155,23 @@ async function onTest() {
   }
 }
 </script>
+
+<style scoped>
+.drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.drawer-tip {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.drawer-actions {
+  display: flex;
+  gap: 8px;
+}
+</style>
