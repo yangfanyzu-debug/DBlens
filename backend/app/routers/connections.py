@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.dependencies.auth import get_current_user, require_admin_user
 from app.database import get_db
 from app.schemas.connection import ConnectionCreate, ConnectionUpdate, ConnectionOut, TestResult
 from app.services import connection_crud, connection_manager
@@ -9,24 +10,38 @@ router = APIRouter(prefix="/api/connections", tags=["connections"])
 
 
 @router.get("", response_model=list[ConnectionOut])
-async def list_connections(db: AsyncSession = Depends(get_db)):
+async def list_connections(
+    db: AsyncSession = Depends(get_db),
+    _current_user=Depends(get_current_user),
+):
     return await connection_crud.list_connections(db)
 
 
 @router.post("", response_model=ConnectionOut)
-async def create_connection(data: ConnectionCreate, db: AsyncSession = Depends(get_db)):
+async def create_connection(
+    data: ConnectionCreate,
+    db: AsyncSession = Depends(get_db),
+    _current_user=Depends(require_admin_user),
+):
     return await connection_crud.create_connection(db, data)
 
 
 @router.post("/test-form", response_model=TestResult)
-async def test_connection_form(data: ConnectionCreate):
+async def test_connection_form(
+    data: ConnectionCreate,
+    _current_user=Depends(require_admin_user),
+):
     """Test a connection using form data before saving."""
     success, message, latency = connection_manager.test_connection_from_form(data.model_dump())
     return TestResult(success=success, message=message, latency_ms=latency)
 
 
 @router.get("/{conn_id}", response_model=ConnectionOut)
-async def get_connection(conn_id: str, db: AsyncSession = Depends(get_db)):
+async def get_connection(
+    conn_id: str,
+    db: AsyncSession = Depends(get_db),
+    _current_user=Depends(get_current_user),
+):
     conn = await connection_crud.get_connection(db, conn_id)
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
@@ -34,7 +49,12 @@ async def get_connection(conn_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{conn_id}", response_model=ConnectionOut)
-async def update_connection(conn_id: str, data: ConnectionUpdate, db: AsyncSession = Depends(get_db)):
+async def update_connection(
+    conn_id: str,
+    data: ConnectionUpdate,
+    db: AsyncSession = Depends(get_db),
+    _current_user=Depends(require_admin_user),
+):
     conn = await connection_crud.update_connection(db, conn_id, data)
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
@@ -42,7 +62,11 @@ async def update_connection(conn_id: str, data: ConnectionUpdate, db: AsyncSessi
 
 
 @router.delete("/{conn_id}")
-async def delete_connection(conn_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_connection(
+    conn_id: str,
+    db: AsyncSession = Depends(get_db),
+    _current_user=Depends(require_admin_user),
+):
     ok = await connection_crud.delete_connection(db, conn_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Connection not found")
@@ -51,7 +75,11 @@ async def delete_connection(conn_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{conn_id}/test", response_model=TestResult)
-async def test_connection(conn_id: str, db: AsyncSession = Depends(get_db)):
+async def test_connection(
+    conn_id: str,
+    db: AsyncSession = Depends(get_db),
+    _current_user=Depends(require_admin_user),
+):
     conn = await connection_crud.get_connection(db, conn_id)
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
@@ -60,7 +88,11 @@ async def test_connection(conn_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{conn_id}/connect")
-async def open_connection(conn_id: str, db: AsyncSession = Depends(get_db)):
+async def open_connection(
+    conn_id: str,
+    db: AsyncSession = Depends(get_db),
+    _current_user=Depends(get_current_user),
+):
     conn = await connection_crud.get_connection(db, conn_id)
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
@@ -69,6 +101,9 @@ async def open_connection(conn_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/{conn_id}/disconnect")
-async def close_connection(conn_id: str):
+async def close_connection(
+    conn_id: str,
+    _current_user=Depends(get_current_user),
+):
     connection_manager.disconnect(conn_id)
     return {"ok": True}
