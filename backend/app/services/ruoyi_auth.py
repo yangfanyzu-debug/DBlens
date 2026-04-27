@@ -1,5 +1,6 @@
 import asyncio
 import json
+import socket
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -54,11 +55,13 @@ async def fetch_current_user(authorization: str) -> CurrentUser:
         if exc.code in (401, 403):
             raise RuoYiAuthError(401, "RuoYi token invalid") from exc
         raise RuoYiAuthError(502, "RuoYi user info request failed") from exc
-    except URLError as exc:
+    except (URLError, UnicodeDecodeError, json.JSONDecodeError, socket.timeout, TimeoutError) as exc:
         raise RuoYiAuthError(502, "RuoYi user info request failed") from exc
 
     if payload.get("code") not in (None, 200):
-        raise RuoYiAuthError(401, payload.get("msg") or "RuoYi token invalid")
+        if payload.get("code") in (401, 403):
+            raise RuoYiAuthError(401, payload.get("msg") or "RuoYi token invalid")
+        raise RuoYiAuthError(502, payload.get("msg") or "RuoYi user info request failed")
 
     try:
         return map_ruoyi_user(payload)

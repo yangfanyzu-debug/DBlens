@@ -80,6 +80,52 @@ class TestRuoYiAuth(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(captured["authorization"], "Bearer token-123")
         self.assertEqual(captured["timeout"], 10)
 
+    async def test_fetch_current_user_maps_ruoyi_business_error_to_502(self):
+        import json
+        from app.services.ruoyi_auth import RuoYiAuthError, fetch_current_user
+
+        payload = {
+            "code": 500,
+            "msg": "upstream unavailable",
+        }
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return json.dumps(payload).encode("utf-8")
+
+        with patch("app.services.ruoyi_auth.urlopen", new=lambda request, timeout: FakeResponse()):
+            with self.assertRaises(RuoYiAuthError) as exc:
+                await fetch_current_user("Bearer token-123")
+
+        self.assertEqual(exc.exception.status_code, 502)
+        self.assertEqual(exc.exception.detail, "upstream unavailable")
+
+    async def test_fetch_current_user_maps_non_json_response_to_502(self):
+        from app.services.ruoyi_auth import RuoYiAuthError, fetch_current_user
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return b"not-json"
+
+        with patch("app.services.ruoyi_auth.urlopen", new=lambda request, timeout: FakeResponse()):
+            with self.assertRaises(RuoYiAuthError) as exc:
+                await fetch_current_user("Bearer token-123")
+
+        self.assertEqual(exc.exception.status_code, 502)
+        self.assertEqual(exc.exception.detail, "RuoYi user info request failed")
+
 
 class TestAuthEndpoint(unittest.TestCase):
     def test_auth_router_is_registered_on_app(self):
