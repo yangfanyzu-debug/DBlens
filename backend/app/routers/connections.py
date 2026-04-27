@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies.auth import get_current_user, require_admin_user
 from app.database import get_db
 from app.schemas.connection import ConnectionCreate, ConnectionUpdate, ConnectionOut, TestResult
+from app.schemas.operator import OperatorContext
 from app.services import connection_crud, connection_manager
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
@@ -21,18 +22,25 @@ async def list_connections(
 async def create_connection(
     data: ConnectionCreate,
     db: AsyncSession = Depends(get_db),
-    _current_user=Depends(require_admin_user),
+    current_user=Depends(require_admin_user),
 ):
-    return await connection_crud.create_connection(db, data)
+    return await connection_crud.create_connection(
+        db,
+        data,
+        operator=OperatorContext.from_current_user(current_user),
+    )
 
 
 @router.post("/test-form", response_model=TestResult)
 async def test_connection_form(
     data: ConnectionCreate,
-    _current_user=Depends(require_admin_user),
+    current_user=Depends(require_admin_user),
 ):
     """Test a connection using form data before saving."""
-    success, message, latency = connection_manager.test_connection_from_form(data.model_dump())
+    success, message, latency = connection_manager.test_connection_from_form(
+        data.model_dump(),
+        operator=OperatorContext.from_current_user(current_user),
+    )
     return TestResult(success=success, message=message, latency_ms=latency)
 
 
@@ -53,9 +61,14 @@ async def update_connection(
     conn_id: str,
     data: ConnectionUpdate,
     db: AsyncSession = Depends(get_db),
-    _current_user=Depends(require_admin_user),
+    current_user=Depends(require_admin_user),
 ):
-    conn = await connection_crud.update_connection(db, conn_id, data)
+    conn = await connection_crud.update_connection(
+        db,
+        conn_id,
+        data,
+        operator=OperatorContext.from_current_user(current_user),
+    )
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
     return conn
@@ -65,9 +78,13 @@ async def update_connection(
 async def delete_connection(
     conn_id: str,
     db: AsyncSession = Depends(get_db),
-    _current_user=Depends(require_admin_user),
+    current_user=Depends(require_admin_user),
 ):
-    ok = await connection_crud.delete_connection(db, conn_id)
+    ok = await connection_crud.delete_connection(
+        db,
+        conn_id,
+        operator=OperatorContext.from_current_user(current_user),
+    )
     if not ok:
         raise HTTPException(status_code=404, detail="Connection not found")
     connection_manager.disconnect(conn_id)
@@ -78,12 +95,15 @@ async def delete_connection(
 async def test_connection(
     conn_id: str,
     db: AsyncSession = Depends(get_db),
-    _current_user=Depends(require_admin_user),
+    current_user=Depends(require_admin_user),
 ):
     conn = await connection_crud.get_connection(db, conn_id)
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
-    success, message, latency = connection_manager.test_connection(conn)
+    success, message, latency = connection_manager.test_connection(
+        conn,
+        operator=OperatorContext.from_current_user(current_user),
+    )
     return TestResult(success=success, message=message, latency_ms=latency)
 
 

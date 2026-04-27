@@ -4,6 +4,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from app.models.connection import Connection
+from app.schemas.operator import OperatorContext
 from app.services import crypto
 
 
@@ -92,7 +93,10 @@ def ensure_engine(conn_id: str):
             return get_engine(conn_id)
 
 
-def test_connection_from_form(data: dict) -> Tuple[bool, str, int]:
+def test_connection_from_form(
+    data: dict,
+    operator: OperatorContext | None = None,
+) -> Tuple[bool, str, int]:
     """Test connection using raw form data (no DB save required)."""
     tunnel = None
     local_port = None
@@ -149,7 +153,10 @@ def _start_tunnel_from_form(target_host: str, target_port: int, ssh_host: str, s
     return tunnel
 
 
-def test_connection(conn: Connection) -> Tuple[bool, str, int]:
+def test_connection(
+    conn: Connection,
+    operator: OperatorContext | None = None,
+) -> Tuple[bool, str, int]:
     tunnel = None
     local_port = None
     try:

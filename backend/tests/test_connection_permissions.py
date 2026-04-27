@@ -1,9 +1,22 @@
 import unittest
+from unittest.mock import AsyncMock, patch
 
 from fastapi import HTTPException
 
 
 class TestConnectionRoutePermissions(unittest.IsolatedAsyncioTestCase):
+    def make_admin_user(self):
+        from app.schemas.auth import CurrentUser
+
+        return CurrentUser(
+            user_id=1,
+            username="admin",
+            nickname="Admin",
+            roles=["admin"],
+            permissions=["*:*:*"],
+            is_admin=True,
+        )
+
     def test_admin_only_routes_depend_on_require_admin_user(self):
         from app.dependencies.auth import require_admin_user
         from app.main import app
@@ -80,6 +93,124 @@ class TestConnectionRoutePermissions(unittest.IsolatedAsyncioTestCase):
         result = await require_admin_user(current_user)
 
         self.assertEqual(result, current_user)
+
+    async def test_create_connection_passes_operator_context(self):
+        from app.routers.connections import create_connection
+        from app.schemas.connection import ConnectionCreate
+
+        current_user = self.make_admin_user()
+        payload = ConnectionCreate(name="demo", db_type="sqlite", database="demo.db")
+        db = object()
+        expected = object()
+
+        with patch(
+            "app.routers.connections.connection_crud.create_connection",
+            new=AsyncMock(return_value=expected),
+        ) as create_mock:
+            result = await create_connection(payload, db, current_user)
+
+        self.assertIs(result, expected)
+        _, kwargs = create_mock.await_args
+        operator = kwargs["operator"]
+        self.assertEqual(operator.user_id, current_user.user_id)
+        self.assertEqual(operator.username, current_user.username)
+        self.assertEqual(operator.roles, tuple(current_user.roles))
+        self.assertTrue(operator.is_admin)
+
+    async def test_update_connection_passes_operator_context(self):
+        from app.routers.connections import update_connection
+        from app.schemas.connection import ConnectionUpdate
+
+        current_user = self.make_admin_user()
+        payload = ConnectionUpdate(name="demo", db_type="sqlite", database="demo.db")
+        db = object()
+        expected = object()
+
+        with patch(
+            "app.routers.connections.connection_crud.update_connection",
+            new=AsyncMock(return_value=expected),
+        ) as update_mock:
+            result = await update_connection("conn-1", payload, db, current_user)
+
+        self.assertIs(result, expected)
+        _, kwargs = update_mock.await_args
+        operator = kwargs["operator"]
+        self.assertEqual(operator.user_id, current_user.user_id)
+        self.assertEqual(operator.username, current_user.username)
+        self.assertEqual(operator.roles, tuple(current_user.roles))
+        self.assertTrue(operator.is_admin)
+
+    async def test_delete_connection_passes_operator_context(self):
+        from app.routers.connections import delete_connection
+
+        current_user = self.make_admin_user()
+        db = object()
+
+        with patch(
+            "app.routers.connections.connection_crud.delete_connection",
+            new=AsyncMock(return_value=True),
+        ) as delete_mock, patch(
+            "app.routers.connections.connection_manager.disconnect",
+        ) as disconnect_mock:
+            result = await delete_connection("conn-1", db, current_user)
+
+        self.assertEqual(result, {"ok": True})
+        _, kwargs = delete_mock.await_args
+        operator = kwargs["operator"]
+        self.assertEqual(operator.user_id, current_user.user_id)
+        self.assertEqual(operator.username, current_user.username)
+        self.assertEqual(operator.roles, tuple(current_user.roles))
+        self.assertTrue(operator.is_admin)
+        disconnect_mock.assert_called_once_with("conn-1")
+
+    async def test_test_connection_passes_operator_context(self):
+        from app.routers.connections import test_connection
+
+        current_user = self.make_admin_user()
+        db = object()
+        conn = object()
+
+        with patch(
+            "app.routers.connections.connection_crud.get_connection",
+            new=AsyncMock(return_value=conn),
+        ), patch(
+            "app.routers.connections.connection_manager.test_connection",
+            return_value=(True, "ok", 12),
+        ) as test_mock:
+            result = await test_connection("conn-1", db, current_user)
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.message, "ok")
+        self.assertEqual(result.latency_ms, 12)
+        _, kwargs = test_mock.call_args
+        operator = kwargs["operator"]
+        self.assertEqual(operator.user_id, current_user.user_id)
+        self.assertEqual(operator.username, current_user.username)
+        self.assertEqual(operator.roles, tuple(current_user.roles))
+        self.assertTrue(operator.is_admin)
+
+    async def test_test_connection_form_passes_operator_context(self):
+        from app.routers.connections import test_connection_form
+        from app.schemas.connection import ConnectionCreate
+
+        current_user = self.make_admin_user()
+        payload = ConnectionCreate(name="demo", db_type="sqlite", database="demo.db")
+
+        with patch(
+            "app.routers.connections.connection_manager.test_connection_from_form",
+            return_value=(True, "ok", 8),
+        ) as test_mock:
+            result = await test_connection_form(payload, current_user)
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.message, "ok")
+        self.assertEqual(result.latency_ms, 8)
+        _, kwargs = test_mock.call_args
+        operator = kwargs["operator"]
+        self.assertEqual(operator.user_id, current_user.user_id)
+        self.assertEqual(operator.username, current_user.username)
+        self.assertEqual(operator.roles, tuple(current_user.roles))
+        self.assertTrue(operator.is_admin)
 
 
 if __name__ == "__main__":

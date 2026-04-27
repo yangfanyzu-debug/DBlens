@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.connection import Connection
+from app.schemas.operator import OperatorContext
 from app.schemas.connection import ConnectionCreate, ConnectionUpdate
 from app.services import crypto
 
@@ -19,7 +20,11 @@ async def get_connection(db: AsyncSession, conn_id: str) -> Optional[Connection]
     return result.scalar_one_or_none()
 
 
-async def create_connection(db: AsyncSession, data: ConnectionCreate) -> Connection:
+async def create_connection(
+    db: AsyncSession,
+    data: ConnectionCreate,
+    operator: OperatorContext | None = None,
+) -> Connection:
     conn = Connection(
         id=str(uuid4()),
         name=data.name,
@@ -47,7 +52,12 @@ async def create_connection(db: AsyncSession, data: ConnectionCreate) -> Connect
     return conn
 
 
-async def update_connection(db: AsyncSession, conn_id: str, data: ConnectionUpdate) -> Optional[Connection]:
+async def update_connection(
+    db: AsyncSession,
+    conn_id: str,
+    data: ConnectionUpdate,
+    operator: OperatorContext | None = None,
+) -> Optional[Connection]:
     conn = await get_connection(db, conn_id)
     if not conn:
         return None
@@ -77,7 +87,11 @@ async def update_connection(db: AsyncSession, conn_id: str, data: ConnectionUpda
     return conn
 
 
-async def delete_connection(db: AsyncSession, conn_id: str) -> bool:
+async def delete_connection(
+    db: AsyncSession,
+    conn_id: str,
+    operator: OperatorContext | None = None,
+) -> bool:
     conn = await get_connection(db, conn_id)
     if not conn:
         return False
