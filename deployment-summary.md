@@ -191,3 +191,23 @@
 
 ### 提示
 - 如对外使用，建议尽快修改默认密码
+
+---
+
+## 11. DBLens 接入建议
+
+### 推荐入口
+- `http://192.168.0.140/dblens/`：DBLens 前端
+- `http://192.168.0.140/api/`：DBLens 后端
+
+### 接入方式
+- 通过 `RuoYi sys_menu` 配置外链菜单，不修改 `RuoYi` 前端源码
+- 复用当前 `Admin-Token` 登录态
+- 保持 `RuoYi` 的 `/prod-api/` 路由不变
+
+### 权限规则
+- 所有已登录 RuoYi 用户可使用 DBLens
+- 只有管理员可新建、编辑、删除、测试连接
+
+### 说明
+- 之所以推荐与 RuoYi 同域部署，是因为 DBLens 前端需要读取浏览器中的 `Admin-Token` cookie，并转发为 `Authorization` 请求头
