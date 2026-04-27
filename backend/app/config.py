@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./dblens_meta.db"
     DBLENS_SECRET_KEY: str = secrets.token_urlsafe(32)
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    LOCAL_DEV_AUTH_ENABLED: bool = True
     RUOYI_BASE_URL: str = "http://192.168.0.140/prod-api"
     RUOYI_USERINFO_PATH: str = "/system/user/getInfo"
     RUOYI_TOKEN_HEADER: str = "Authorization"

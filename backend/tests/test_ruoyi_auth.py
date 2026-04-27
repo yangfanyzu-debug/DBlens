@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 from fastapi import HTTPException
+from starlette.requests import Request
 
 
 class TestRuoYiAuth(unittest.IsolatedAsyncioTestCase):
@@ -141,14 +142,30 @@ class TestAuthEndpoint(unittest.TestCase):
 
 
 class TestAuthDependency(unittest.IsolatedAsyncioTestCase):
+    def make_request(self, host: str) -> Request:
+        return Request(
+            {
+                "type": "http",
+                "headers": [(b"host", host.encode("utf-8"))],
+            }
+        )
+
     async def test_get_current_user_requires_authorization_header(self):
         from app.dependencies.auth import get_current_user
 
         with self.assertRaises(HTTPException) as exc:
-            await get_current_user(None)
+            await get_current_user(self.make_request("192.168.0.140"), None)
 
         self.assertEqual(exc.exception.status_code, 401)
         self.assertEqual(exc.exception.detail, "RuoYi token missing")
+
+    async def test_get_current_user_allows_local_dev_without_authorization_header(self):
+        from app.dependencies.auth import get_current_user
+
+        user = await get_current_user(self.make_request("localhost:8000"), None)
+
+        self.assertEqual(user.username, "local-dev-admin")
+        self.assertTrue(user.is_admin)
 
     async def test_get_current_user_forwards_authorization_header(self):
         from app.dependencies.auth import get_current_user
@@ -168,7 +185,7 @@ class TestAuthDependency(unittest.IsolatedAsyncioTestCase):
             autospec=True,
             return_value=mocked_user,
         ) as fetch_current_user:
-            user = await get_current_user("Bearer token-123")
+            user = await get_current_user(self.make_request("192.168.0.140"), "Bearer token-123")
 
         self.assertEqual(user, mocked_user)
         fetch_current_user.assert_awaited_once_with("Bearer token-123")
