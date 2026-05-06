@@ -10,4 +10,4 @@ export const applyChanges = (connId: string, database: string, table: string, ch
   http.put(`/data/${connId}/${database}/${table}/rows`, { changes }).then(r => r.data)
 
 export const exportData = (connId: string, database: string, table: string, format: string) =>
-  `/api/data/${connId}/${database}/${table}/export?format=${format}`
+  `/dblens-api/data/${connId}/${database}/${table}/export?format=${format}`
