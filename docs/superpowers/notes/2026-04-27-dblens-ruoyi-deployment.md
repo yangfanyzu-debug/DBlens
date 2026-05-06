@@ -13,7 +13,7 @@
 - RuoYi 前端入口：`http://192.168.0.140/`
 - RuoYi 网关入口：`http://192.168.0.140/prod-api/`
 - DBLens 前端入口：`http://192.168.0.140/dblens/`
-- DBLens 后端入口：`http://192.168.0.140/api/`
+- DBLens 后端入口：`http://192.168.0.140/dblens-api/`
 
 这样做的原因：
 
@@ -25,7 +25,7 @@
 ## Nginx 接入要点
 
 - 为 `/dblens/` 增加静态资源或前端反向代理
-- 为 `/api/` 增加 DBLens 后端反向代理
+- 为 `/dblens-api/` 增加 DBLens 后端反向代理
 - 保持现有 `/prod-api/` 路由不变
 - 确认 `Admin-Token` cookie 的 `Path` 覆盖 `/`，否则 DBLens 页面读不到该 cookie
 

@@ -11,7 +11,8 @@ export class QueryWebSocket {
   }
 
   connect() {
-    const wsUrl = `ws://${location.host}/ws/${this.queryId}`
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
+    const wsUrl = `${protocol}://${location.host}/dblens-api/ws/${this.queryId}`
     console.log('[WS] Connecting to', wsUrl)
     try {
       this.ws = new WebSocket(wsUrl)

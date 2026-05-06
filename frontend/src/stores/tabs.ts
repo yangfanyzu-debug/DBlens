@@ -40,10 +40,22 @@ export const useTabsStore = defineStore('tabs', () => {
     }
   }
 
+  function closeOtherTabs(id: string) {
+    const tab = tabs.value.find(t => t.id === id)
+    if (!tab) return
+    tabs.value = [tab]
+    activeTabId.value = tab.id
+  }
+
+  function closeAllTabs() {
+    tabs.value = []
+    activeTabId.value = null
+  }
+
   function renameTab(id: string, title: string) {
     const tab = tabs.value.find(t => t.id === id)
     if (tab) tab.title = title
   }
 
-  return { tabs, activeTabId, openEditorTab, openTableTab, closeTab, renameTab }
+  return { tabs, activeTabId, openEditorTab, openTableTab, closeTab, closeOtherTabs, closeAllTabs, renameTab }
 })

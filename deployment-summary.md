@@ -198,7 +198,7 @@
 
 ### 推荐入口
 - `http://192.168.0.140/dblens/`：DBLens 前端
-- `http://192.168.0.140/api/`：DBLens 后端
+- `http://192.168.0.140/dblens-api/`：DBLens 后端
 
 ### 接入方式
 - 通过 `RuoYi sys_menu` 配置外链菜单，不修改 `RuoYi` 前端源码

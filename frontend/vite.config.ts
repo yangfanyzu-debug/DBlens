@@ -11,8 +11,15 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8000',
-      '/ws': { target: 'ws://localhost:8000', ws: true },
+      '/dblens-api': {
+        target: 'http://localhost:8000',
+        rewrite: (path) => path.replace(/^\/dblens-api/, '/api'),
+      },
+      '/dblens-api/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
+        rewrite: (path) => path.replace(/^\/dblens-api\/ws/, '/ws'),
+      },
     },
   },
 }))
