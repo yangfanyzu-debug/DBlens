@@ -25,9 +25,16 @@ const emit = defineEmits<{ (e: 'update:visible', v: boolean): void }>()
 const visible = computed({ get: () => props.visible, set: v => emit('update:visible', v) })
 const format = ref('csv')
 
-function doExport() {
-  const url = exportData(props.tab.connId!, props.tab.database!, props.tab.table!, format.value)
-  window.open(url, '_blank')
+async function doExport() {
+  const { blob, filename } = await exportData(props.tab.connId!, props.tab.database!, props.tab.table!, format.value)
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
   visible.value = false
 }
 </script>
