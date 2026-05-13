@@ -127,6 +127,41 @@ tar -xf /tmp/dblens-frontend-dist.tar -C /usr/share/nginx/html/dblens --strip-co
 
 ## 7. 后端部署
 
+### 7.0 初始化 DBLens 元数据库
+
+DBLens 后端使用 MySQL 保存元数据，包括连接配置、查询会话和操作日志。
+
+推荐方式是先建库，再由 Alembic 建表：
+
+```sql
+CREATE DATABASE IF NOT EXISTS dblens
+  DEFAULT CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+```
+
+也可以直接执行仓库中的建库脚本：
+
+- `D:\traeWK\DBLens\sql\create_dblens_database.sql`
+
+如果目标生产环境不方便运行 Alembic，可以改用完整初始化脚本：
+
+- `D:\traeWK\DBLens\sql\init_dblens_mysql.sql`
+
+完整初始化脚本会创建以下表，并写入 `alembic_version=0003`：
+
+- `connections`
+- `query_sessions`
+- `operation_logs`
+- `alembic_version`
+
+生产环境建议使用 DBLens 专用 MySQL 账号，而不是长期使用 `root`：
+
+```sql
+CREATE USER IF NOT EXISTS 'dblens'@'%' IDENTIFIED BY '请替换为强密码';
+GRANT ALL PRIVILEGES ON dblens.* TO 'dblens'@'%';
+FLUSH PRIVILEGES;
+```
+
 ### 7.1 同步后端代码
 
 将本地 `backend` 目录中的应用代码同步到：
@@ -144,7 +179,7 @@ tar -xf /tmp/dblens-frontend-dist.tar -C /usr/share/nginx/html/dblens --strip-co
 
 ```powershell
 cd D:\traeWK\DBLens
-tar -cf output\deploy\backend-app.tar backend\app backend\run.py backend\requirements.txt
+tar -cf output\deploy\backend-app.tar backend\app backend\alembic backend\alembic.ini backend\run.py backend\requirements.txt
 scp output\deploy\backend-app.tar root@192.168.0.142:/tmp/dblens-backend-app.tar
 ```
 
@@ -161,18 +196,39 @@ tar -xf /tmp/dblens-backend-app.tar -C /opt/dblens/app/backend --strip-component
 远端 `.env` 至少需要包含以下配置：
 
 ```env
-DATABASE_URL=sqlite+aiosqlite:////opt/dblens/runtime/dblens_meta.db
+DATABASE_URL=mysql+aiomysql://dblens:请替换为强密码@<mysql-host>:3306/dblens?charset=utf8mb4
+DBLENS_SECRET_KEY=请替换为固定高强度密钥
 LOCAL_DEV_AUTH_ENABLED=false
-RUOYI_BASE_URL=http://192.168.0.140/prod-api
+RUOYI_BASE_URL=http://<nginx-host>/prod-api
 ```
 
 说明：
 
 - `DATABASE_URL` 是 DBLens 自己的元数据库
+- `DBLENS_SECRET_KEY` 必须固定保存，不能每次部署或重启重新生成，否则已保存的连接密码将无法解密
 - `LOCAL_DEV_AUTH_ENABLED=false` 表示生产环境禁用本地开发兜底身份
 - `RUOYI_BASE_URL` 指向 `RuoYi gateway` 对外入口
 
-### 7.3 启停后端
+### 7.3 安装依赖并执行数据库迁移
+
+如果使用 Alembic 管理建表，上传后端代码后需要在后端节点执行：
+
+```bash
+cd /opt/dblens/app/backend
+/opt/dblens/venv/bin/python -m pip install -r requirements.txt
+/opt/dblens/venv/bin/python -m alembic upgrade head
+```
+
+执行完成后，DBLens 元数据库中应存在：
+
+- `connections`
+- `query_sessions`
+- `operation_logs`
+- `alembic_version`
+
+如果已经执行过 `sql/init_dblens_mysql.sql`，仍可以运行 `alembic upgrade head` 做一致性确认；此时 Alembic 应识别当前版本为 `0003`，不会重复建表。
+
+### 7.4 启停后端
 
 启动：
 
@@ -249,6 +305,11 @@ systemctl restart nginx
 
 - `D:\traeWK\DBLens\sql\dblens_ruoyi_menu.sql`
 
+注意：
+
+- SQL 中的 `@dblens_menu_path` 默认为 `http://192.168.0.140/dblens/`
+- 部署到新生产环境前，需要替换为新的域名或 IP
+
 菜单要求：
 
 - 菜单类型：菜单
@@ -304,7 +365,27 @@ curl http://127.0.0.1:8000/health
 
 - 返回健康状态
 
-### 10.5 验证 WebSocket
+### 10.5 验证元数据库表
+
+在 DBLens 元数据库中执行：
+
+```sql
+SHOW TABLES;
+SELECT version_num FROM alembic_version;
+```
+
+期望至少包含：
+
+- `connections`
+- `query_sessions`
+- `operation_logs`
+- `alembic_version`
+
+当前版本期望为：
+
+- `0003`
+
+### 10.6 验证 WebSocket
 
 在浏览器打开：
 
@@ -364,4 +445,3 @@ curl http://127.0.0.1:8000/health
 - RuoYi gateway：`http://192.168.0.140/prod-api/`
 - DBLens backend 运行地址：`http://192.168.0.142:8000`
 - DBLens backend 健康检查：`http://127.0.0.1:8000/health`
-

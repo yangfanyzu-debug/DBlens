@@ -83,7 +83,7 @@ const grouped = computed(() => {
     const key = c.group_name || ''
     if (!g[key]) {
       g[key] = []
-      if (!(key in expanded)) expanded[key] = true
+      if (!(key in expanded)) expanded[key] = false
     }
     g[key].push(c)
   }

@@ -1,9 +1,13 @@
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services import data_service
+from app.database import get_db
+from app.dependencies.auth import get_current_user
+from app.schemas.operator import OperatorContext
+from app.services import data_service, operation_logger
 from app.services.connection_manager import ensure_engine
 
 router = APIRouter(prefix="/api/data", tags=["data"])
@@ -57,10 +61,31 @@ async def preview_changes(conn_id: str, database: str, table: str, req: ChangesR
 @router.post("/{conn_id}/{database}/{table}/rows")
 @router.put("/{conn_id}/{database}/{table}/rows")
 @router.delete("/{conn_id}/{database}/{table}/rows")
-async def apply_changes(conn_id: str, database: str, table: str, req: ChangesRequest):
+async def apply_changes(
+    conn_id: str,
+    database: str,
+    table: str,
+    req: ChangesRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     try:
         db_type = _db_type(conn_id)
         data_service.apply_changes(conn_id, db_type, database, table, [c.model_dump() for c in req.changes])
+        await operation_logger.record_operation(
+            db,
+            operator=OperatorContext.from_current_user(current_user),
+            action="data.apply_changes",
+            resource_type="table",
+            conn_id=conn_id,
+            db_name=database,
+            table_name=table,
+            detail={
+                "change_count": len(req.changes),
+                "ops": [change.op for change in req.changes],
+            },
+            status="success",
+        )
         return {"ok": True}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -69,10 +94,28 @@ async def apply_changes(conn_id: str, database: str, table: str, req: ChangesReq
 
 
 @router.get("/{conn_id}/{database}/{table}/export")
-async def export_data(conn_id: str, database: str, table: str, format: str = "csv"):
+async def export_data(
+    conn_id: str,
+    database: str,
+    table: str,
+    format: str = "csv",
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     try:
         db_type = _db_type(conn_id)
         content, media_type = data_service.export_data(conn_id, db_type, database, table, format)
+        await operation_logger.record_operation(
+            db,
+            operator=OperatorContext.from_current_user(current_user),
+            action="data.export",
+            resource_type="table",
+            conn_id=conn_id,
+            db_name=database,
+            table_name=table,
+            detail={"format": format},
+            status="success",
+        )
         filename = f"{table}.{format}"
         return Response(
             content=content,

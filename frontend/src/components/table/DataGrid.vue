@@ -55,7 +55,7 @@
             </template>
             <template v-else>
               <span :class="{ 'cell-modified': isCellModified($index, col.name) }">
-                {{ row[col.name] }}
+                {{ formatCellValue(row[col.name]) }}
               </span>
             </template>
           </div>
@@ -101,6 +101,7 @@ import { ElMessage } from 'element-plus'
 import type { Tab } from '@/stores/tabs'
 import * as dataApi from '@/api/data'
 import ExportDialog from '@/components/common/ExportDialog.vue'
+import { formatCellValue } from '@/utils/displayFormat'
 
 const props = defineProps<{ tab: Tab }>()
 

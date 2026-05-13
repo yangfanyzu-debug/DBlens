@@ -157,7 +157,7 @@ const trackRef = ref<HTMLElement>()
 const panelVisible = ref(false)
 const canScrollLeft = ref(false)
 const canScrollRight = ref(false)
-const issueLogUrl = 'https://www.baidu.com'
+const issueLogUrl = 'http://km/pages/viewpage.action?pageId=143692991'
 
 const tabRefs = new Map<string, HTMLElement>()
 let resizeObserver: ResizeObserver | null = null

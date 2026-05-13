@@ -1,11 +1,24 @@
 <template>
   <div class="db-tree">
+    <div class="db-tree-search">
+      <el-input
+        v-model="filterText"
+        placeholder="搜索库 / 表 / 视图"
+        size="small"
+        clearable
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
+    </div>
     <el-tree
       ref="treeRef"
       :data="treeData"
       :props="{ label: 'label', children: 'children', isLeaf: 'isLeaf' }"
       lazy
       :load="loadNode"
+      :filter-node-method="filterNode"
       :node-contextmenu="onContextMenu"
       @node-click="onNodeClick"
       highlight-current
@@ -16,7 +29,12 @@
           <el-icon v-if="data.nodeType === 'database'" class="node-icon db"><Grid /></el-icon>
           <el-icon v-else-if="data.nodeType === 'table'" class="node-icon tbl"><Document /></el-icon>
           <el-icon v-else-if="data.nodeType === 'view'" class="node-icon view"><View /></el-icon>
-          <span class="node-label">{{ node.label }}</span>
+          <span class="node-label">
+            <template v-for="(part, index) in splitTreeSearchLabel(node.label, filterText)" :key="index">
+              <mark v-if="part.match" class="search-hit">{{ part.text }}</mark>
+              <span v-else>{{ part.text }}</span>
+            </template>
+          </span>
         </span>
       </template>
     </el-tree>
@@ -31,12 +49,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from 'vue'
-import { Grid, Document, View, InfoFilled, CopyDocument } from '@element-plus/icons-vue'
+import { ref, watch, nextTick } from 'vue'
+import { Grid, Document, View, InfoFilled, CopyDocument, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as dbApi from '@/api/databases'
 import { useTabsStore } from '@/stores/tabs'
 import { useSchemaStore } from '@/stores/schema'
+import { collapseTreeNode, expandTreeNode, getTreeStoreRoot, matchesTreeSearch, splitTreeSearchLabel } from '@/utils/treeSearch'
 
 const props = defineProps<{ connId: string }>()
 const tabsStore = useTabsStore()
@@ -46,22 +65,36 @@ const treeData = ref<any[]>([])
 const menuData = ref<any>(null)
 const menuStyle = ref({})
 const treeRef = ref<any>(null)
+const filterText = ref('')
 
-watch(() => props.connId, () => { treeData.value = [] })
+watch(() => props.connId, () => {
+  treeData.value = []
+  filterText.value = ''
+})
 
-onMounted(async () => {
-  // Initial level-0 load (databases) happens via lazy load trigger.
-  // Wait for render then auto-expand all database nodes.
+watch(filterText, async (value, previousValue) => {
   await nextTick()
-  expandAllDatabases()
+  const query = value.trim()
+  if (query) expandAllDatabases()
+  treeRef.value?.filter(value)
+  if (!query && previousValue?.trim()) collapseAllDatabases()
 })
 
 function expandAllDatabases() {
   if (!treeRef.value?.store) return
-  const root = treeRef.value.store.state.root
+  const root = getTreeStoreRoot(treeRef.value.store)
   if (!root) return
   for (const child of root.childNodes) {
-    treeRef.value.store.expandNode(child)
+    expandTreeNode(treeRef.value.store, child)
+  }
+}
+
+function collapseAllDatabases() {
+  if (!treeRef.value?.store) return
+  const root = getTreeStoreRoot(treeRef.value.store)
+  if (!root) return
+  for (const child of root.childNodes) {
+    collapseTreeNode(treeRef.value.store, child)
   }
 }
 
@@ -69,8 +102,6 @@ async function loadNode(node: any, resolve: (data: any[]) => void) {
   if (node.level === 0) {
     const dbs = await dbApi.listDatabases(props.connId)
     resolve(dbs.map((d: string) => ({ label: d, nodeType: 'database', connId: props.connId, database: d })))
-    await nextTick()
-    expandAllDatabases()
     return
   }
   if (node.data.nodeType === 'database') {
@@ -84,9 +115,22 @@ async function loadNode(node: any, resolve: (data: any[]) => void) {
       table: t.name,
       isLeaf: true,
     })))
+    await nextTick()
+    treeRef.value?.filter(filterText.value)
     return
   }
   resolve([])
+}
+
+function loadedDescendantMatches(node: any, query: string): boolean {
+  return (node?.childNodes ?? []).some((child: any) =>
+    matchesTreeSearch(child.data?.label, query) || loadedDescendantMatches(child, query)
+  )
+}
+
+function filterNode(value: string, data: any, node: any) {
+  if (!value.trim()) return true
+  return matchesTreeSearch(data.label, value) || loadedDescendantMatches(node, value)
 }
 
 function onContextMenu(e: MouseEvent, data: any) {
@@ -125,6 +169,21 @@ function copyName() {
 
 <style scoped>
 .db-tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+.db-tree-search {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 2px 10px 8px;
+  background: linear-gradient(180deg, var(--bg-secondary) 70%, rgba(0, 0, 0, 0));
+}
+.db-tree-search :deep(.el-input__wrapper) {
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 1px var(--border-muted) inset;
+}
+.db-tree-search :deep(.el-input__inner) {
+  font-size: 12px;
+}
 .tree-node { display: flex; align-items: center; gap: 5px; font-size: 13px; }
 .node-icon { font-size: 12px; }
 .node-icon.db { color: var(--accent-purple); }
@@ -132,6 +191,12 @@ function copyName() {
 .node-icon.view { color: var(--accent-orange); }
 .node-label { color: var(--text-secondary); }
 .node-label:hover { color: var(--text-primary); }
+.search-hit {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: rgba(210, 153, 34, 0.28);
+  color: var(--text-primary);
+}
 
 /* el-tree overrides for dark theme */
 :deep(.el-tree) {

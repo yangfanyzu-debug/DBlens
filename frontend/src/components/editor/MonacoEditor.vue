@@ -8,6 +8,7 @@ import * as monaco from 'monaco-editor'
 import { format as sqlFormat } from 'sql-formatter'
 import { useSchemaStore } from '@/stores/schema'
 import { useThemeStore } from '@/stores/theme'
+import { getSqlToExecute } from '@/utils/sqlSelection'
 
 const props = defineProps<{ connId: string; database: string }>()
 const emit = defineEmits<{ (e: 'execute', sql: string): void }>()
@@ -51,9 +52,7 @@ onMounted(() => {
   })
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-    const sel = editor!.getSelection()
-    const selectedText = sel && !sel.isEmpty() ? editor!.getModel()!.getValueInRange(sel) : ''
-    emit('execute', selectedText || editor!.getValue())
+    emit('execute', getSelectedTextOrValue())
   })
 
   registerCompletion()
@@ -70,7 +69,14 @@ onUnmounted(() => {
   editor?.dispose()
 })
 
+function getSelectedText() {
+  const sel = editor?.getSelection()
+  if (!sel || sel.isEmpty()) return ''
+  return editor?.getModel()?.getValueInRange(sel) ?? ''
+}
+
 function getValue() { return editor?.getValue() ?? '' }
+function getSelectedTextOrValue() { return getSqlToExecute(getSelectedText(), getValue()) }
 function layout() { editor?.layout() }
 function format() {
   const val = editor?.getValue() ?? ''
@@ -79,7 +85,7 @@ function format() {
   } catch { /* ignore format errors */ }
 }
 
-defineExpose({ getValue, format, layout })
+defineExpose({ getValue, getSelectedTextOrValue, format, layout })
 </script>
 
 <style scoped>

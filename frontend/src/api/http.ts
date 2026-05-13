@@ -14,6 +14,15 @@ function getRuoYiToken() {
 }
 
 http.interceptors.request.use((config) => {
+  const method = (config.method || 'get').toLowerCase()
+  if (method === 'get') {
+    config.headers = config.headers ?? {}
+    config.headers['Cache-Control'] = 'no-store'
+    config.headers.Pragma = 'no-cache'
+    config.headers.Expires = '0'
+    config.params = { ...(config.params || {}), _ts: Date.now().toString() }
+  }
+
   const token = getRuoYiToken()
   if (token) {
     config.headers = config.headers ?? {}

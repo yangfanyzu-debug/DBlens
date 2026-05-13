@@ -11,7 +11,7 @@ class Connection(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    db_type: Mapped[str] = mapped_column(Enum("mysql", "postgresql", "sqlite"), nullable=False)
+    db_type: Mapped[str] = mapped_column(Enum("mysql", "postgresql", "sqlite", "doris"), nullable=False)
     host: Mapped[str | None] = mapped_column(String(256))
     port: Mapped[int | None] = mapped_column(Integer)
     username: Mapped[str | None] = mapped_column(String(128))

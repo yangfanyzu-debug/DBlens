@@ -20,7 +20,7 @@ def upgrade() -> None:
         "connections",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("name", sa.String(128), nullable=False),
-        sa.Column("db_type", sa.Enum("mysql", "postgresql", "sqlite"), nullable=False),
+        sa.Column("db_type", sa.Enum("mysql", "postgresql", "sqlite", "doris"), nullable=False),
         sa.Column("host", sa.String(256)),
         sa.Column("port", sa.Integer()),
         sa.Column("username", sa.String(128)),

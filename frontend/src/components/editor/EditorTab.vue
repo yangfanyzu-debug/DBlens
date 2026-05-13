@@ -44,7 +44,7 @@ const resultsHeight = ref(200)
 let wsClient: QueryWebSocket | null = null
 
 async function onExecute(sql?: string) {
-  const code = sql ?? monacoRef.value?.getValue() ?? ''
+  const code = sql ?? monacoRef.value?.getSelectedTextOrValue?.() ?? monacoRef.value?.getValue() ?? ''
   if (!code.trim()) return
   const queryId = uuidv4()
   currentQueryId.value = queryId

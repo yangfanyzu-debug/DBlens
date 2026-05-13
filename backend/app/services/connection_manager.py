@@ -1,8 +1,10 @@
 import time
 from typing import Dict, Tuple, Optional
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session
 
+from app.config import settings, sync_database_url
 from app.models.connection import Connection
 from app.schemas.operator import OperatorContext
 from app.services import crypto
@@ -10,9 +12,28 @@ from app.services import crypto
 
 # { conn_id: (engine, tunnel_or_None) }
 _pool: Dict[str, Tuple] = {}
+MYSQL_COMPATIBLE_DB_TYPES = {"mysql", "doris"}
 
 # Synchronous engine for meta-DB (to reload connection config after restart)
-_meta_engine = create_engine("sqlite:///./dblens_meta.db", pool_pre_ping=True)
+_meta_engine = create_engine(sync_database_url(settings.DATABASE_URL), pool_pre_ping=True)
+
+
+def _build_driver_url(
+    drivername: str,
+    username: str,
+    password: str,
+    host: str,
+    port: int,
+    database: str,
+) -> str:
+    return URL.create(
+        drivername,
+        username=username,
+        password=password,
+        host=host,
+        port=port,
+        database=database,
+    ).render_as_string(hide_password=False)
 
 
 def _build_url(conn: Connection, local_port: Optional[int] = None) -> str:
@@ -23,10 +44,14 @@ def _build_url(conn: Connection, local_port: Optional[int] = None) -> str:
         return f"sqlite:///{conn.database}"
 
     password = crypto.decrypt(conn.password_enc) if conn.password_enc else ""
-    if conn.db_type == "mysql":
-        return f"mysql+pymysql://{conn.username}:{password}@{host}:{port}/{conn.database or ''}"
+    if conn.db_type in MYSQL_COMPATIBLE_DB_TYPES:
+        return _build_driver_url(
+            "mysql+pymysql", conn.username or "", password, host, port, conn.database or ""
+        )
     if conn.db_type == "postgresql":
-        return f"postgresql+psycopg2://{conn.username}:{password}@{host}:{port}/{conn.database or ''}"
+        return _build_driver_url(
+            "postgresql+psycopg2", conn.username or "", password, host, port, conn.database or ""
+        )
     raise ValueError(f"Unsupported db_type: {conn.db_type}")
 
 
@@ -58,7 +83,7 @@ def connect(conn: Connection):
 
     url = _build_url(conn, local_port)
     connect_args = {}
-    if conn.ssl_enabled and conn.db_type == "mysql":
+    if conn.ssl_enabled and conn.db_type in MYSQL_COMPATIBLE_DB_TYPES:
         connect_args["ssl"] = {"ca": conn.ssl_ca, "cert": conn.ssl_cert, "key": conn.ssl_key}
 
     engine = create_engine(url, pool_size=5, max_overflow=10, connect_args=connect_args)
@@ -103,7 +128,7 @@ def test_connection_from_form(
     try:
         db_type = data.get("db_type")
         host = data.get("host") or "127.0.0.1"
-        port = data.get("port") or (3306 if db_type == "mysql" else 5432)
+        port = data.get("port") or (9030 if db_type == "doris" else 3306 if db_type == "mysql" else 5432)
         username = data.get("username") or ""
         password = data.get("password") or ""
         database = data.get("database") or ""
@@ -119,10 +144,24 @@ def test_connection_from_form(
 
         if db_type == "sqlite":
             url = f"sqlite:///{database}"
-        elif db_type == "mysql":
-            url = f"mysql+pymysql://{username}:{password}@{('127.0.0.1' if local_port else host)}:{local_port or port}/{database}"
+        elif db_type in MYSQL_COMPATIBLE_DB_TYPES:
+            url = _build_driver_url(
+                "mysql+pymysql",
+                username,
+                password,
+                "127.0.0.1" if local_port else host,
+                local_port or port,
+                database,
+            )
         elif db_type == "postgresql":
-            url = f"postgresql+psycopg2://{username}:{password}@{('127.0.0.1' if local_port else host)}:{local_port or port}/{database}"
+            url = _build_driver_url(
+                "postgresql+psycopg2",
+                username,
+                password,
+                "127.0.0.1" if local_port else host,
+                local_port or port,
+                database,
+            )
         else:
             return False, f"Unsupported db_type: {db_type}", 0
 

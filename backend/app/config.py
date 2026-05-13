@@ -16,4 +16,14 @@ class Settings(BaseSettings):
     model_config = ConfigDict(env_file=".env")
 
 
+def sync_database_url(database_url: str) -> str:
+    if database_url.startswith("mysql+aiomysql://"):
+        return database_url.replace("mysql+aiomysql://", "mysql+pymysql://", 1)
+    if database_url.startswith("sqlite+aiosqlite://"):
+        return database_url.replace("sqlite+aiosqlite://", "sqlite://", 1)
+    if database_url.startswith("postgresql+asyncpg://"):
+        return database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
+    return database_url
+
+
 settings = Settings()

@@ -19,7 +19,11 @@
         min-width="120"
         sortable
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          {{ formatCellValue(row[col]) }}
+        </template>
+      </el-table-column>
     </el-table>
   </div>
 </template>
@@ -27,6 +31,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { QueryResult } from '@/stores/query'
+import { formatCellValue } from '@/utils/displayFormat'
 
 const props = defineProps<{ stmt: QueryResult }>()
 

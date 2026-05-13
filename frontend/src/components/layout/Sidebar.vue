@@ -26,6 +26,7 @@
       </div>
       <ConnectionTree @open-db-tree="onOpenDbTree" />
       <!-- 数据库表树折叠面板 -->
+      <div v-if="activeConnId" class="sidebar-divider" aria-hidden="true" />
       <div v-if="activeConnId" class="db-panel">
         <div class="db-panel-header" @click="dbPanelOpen = !dbPanelOpen">
           <el-icon class="db-panel-caret" :class="{ open: dbPanelOpen }">
@@ -156,9 +157,17 @@ watch(activeConnId, () => { dbPanelOpen.value = false })
 }
 
 /* 数据库表树折叠面板 */
+.sidebar-divider {
+  height: 10px;
+  margin: 14px 0 8px;
+  border-top: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-muted);
+  background: linear-gradient(180deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.03);
+}
+
 .db-panel {
-  margin-top: 16px;
-  border-top: 1px solid var(--border-muted);
+  margin-top: 0;
 }
 
 .db-panel-header {

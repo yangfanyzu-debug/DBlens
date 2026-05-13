@@ -4,7 +4,7 @@ from typing import Optional
 
 class ConnectionCreate(BaseModel):
     name: str
-    db_type: str  # mysql / postgresql / sqlite
+    db_type: str  # mysql / doris / postgresql / sqlite
     host: Optional[str] = None
     port: Optional[int] = None
     username: Optional[str] = None

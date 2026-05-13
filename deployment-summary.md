@@ -41,7 +41,7 @@
 - Host：`192.168.0.140`
 - Port：`3306`
 - User：`root`
-- Password：`MySQL57_20260327Aa1!`
+- Password：`<redacted>`
 
 
 ## 4. Nacos 数据库配置
@@ -51,7 +51,7 @@
 - DB Port：`3306`
 - DB Name：`nacos`
 - DB User：`nacos`
-- DB Password：`Nacos_20260327Aa1!`
+- DB Password：`<redacted>`
 
 ---
 
@@ -89,9 +89,9 @@
 
 ### 当前存在密码的组件
 - MySQL root
-- `MySQL57_20260327Aa1!`
+- `<redacted>`
 - Nacos 数据库用户 `nacos`
-- `Nacos_20260327Aa1!`
+- `<redacted>`
 
 ### 当前未做鉴权的组件
 - Redis：**无密码**
@@ -137,7 +137,7 @@
 - DB Host：`192.168.0.140`
 - DB Port：`3306`
 - DB User：`root`
-- DB Password：`MySQL57_20260327Aa1!`
+- DB Password：`<redacted>`
 
 ### RuoYi Nacos 配置
 - Group：`DEFAULT_GROUP`

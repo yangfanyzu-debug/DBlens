@@ -1,16 +1,22 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-from app.models.connection import Connection
-from app.models.query_session import QuerySession
+from app.config import settings, sync_database_url
 from app.database import Base
+from app.models.connection import Connection
+from app.models.operation_log import OperationLog
+from app.models.query_session import QuerySession
 
 target_metadata = Base.metadata
+config.set_main_option(
+    "sqlalchemy.url", sync_database_url(settings.DATABASE_URL).replace("%", "%%")
+)
 
 
 def run_migrations_offline() -> None:

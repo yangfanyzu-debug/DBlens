@@ -5,8 +5,9 @@
         <el-input v-model="form.name" />
       </el-form-item>
       <el-form-item label="数据库类型" required>
-        <el-select v-model="form.db_type" style="width:100%">
+        <el-select v-model="form.db_type" style="width:100%" @change="onDbTypeChange">
           <el-option label="MySQL" value="mysql" />
+          <el-option label="Doris" value="doris" />
           <el-option label="PostgreSQL" value="postgresql" />
           <el-option label="SQLite" value="sqlite" />
         </el-select>
@@ -117,6 +118,12 @@ watch(() => props.initial, (v) => {
 }, { immediate: true })
 
 function reset() { form.value = defaultForm() }
+
+function onDbTypeChange(dbType: string) {
+  if (dbType === 'doris') form.value.port = 9030
+  else if (dbType === 'mysql') form.value.port = 3306
+  else if (dbType === 'postgresql') form.value.port = 5432
+}
 
 async function onSave() {
   if (!authStore.isAdmin) {
