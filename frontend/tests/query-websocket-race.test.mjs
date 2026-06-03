@@ -1,0 +1,12 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+
+const websocket = readFileSync(new URL('../src/utils/websocket.ts', import.meta.url), 'utf8')
+const editorTab = readFileSync(new URL('../src/components/editor/EditorTab.vue', import.meta.url), 'utf8')
+
+test('QueryWebSocket.connect resolves before executeQuery is called', () => {
+  assert.match(websocket, /connect\(\): Promise<void>/)
+  assert.match(editorTab, /await wsClient\.connect\(\)/)
+  assert.ok(editorTab.indexOf('await wsClient.connect()') < editorTab.indexOf('await queryApi.executeQuery'))
+})

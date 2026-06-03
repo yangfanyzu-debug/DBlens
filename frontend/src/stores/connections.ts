@@ -2,10 +2,28 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Connection, ConnectionForm } from '@/api/connections'
 import * as api from '@/api/connections'
+import { markConnectionUsed, type ConnectionUseMap } from '@/utils/connectionRecents'
+
+const RECENTS_KEY = 'dblens:connection-recents'
+
+function loadRecents(): ConnectionUseMap {
+  if (typeof localStorage === 'undefined') return {}
+  try {
+    return JSON.parse(localStorage.getItem(RECENTS_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveRecents(recents: ConnectionUseMap) {
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(RECENTS_KEY, JSON.stringify(recents))
+}
 
 export const useConnectionsStore = defineStore('connections', () => {
   const connections = ref<Connection[]>([])
   const activeConnId = ref<string | null>(null)
+  const recentUse = ref<ConnectionUseMap>(loadRecents())
 
   async function fetchAll() {
     connections.value = await api.listConnections()
@@ -33,7 +51,9 @@ export const useConnectionsStore = defineStore('connections', () => {
   async function connect(id: string) {
     await api.openConnection(id)
     activeConnId.value = id
+    recentUse.value = markConnectionUsed(recentUse.value, id)
+    saveRecents(recentUse.value)
   }
 
-  return { connections, activeConnId, fetchAll, create, update, remove, connect }
+  return { connections, activeConnId, recentUse, fetchAll, create, update, remove, connect }
 })

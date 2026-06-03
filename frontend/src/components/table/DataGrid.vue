@@ -91,7 +91,7 @@
     </el-dialog>
 
     <!-- Export Dialog -->
-    <ExportDialog v-model:visible="showExport" :tab="tab" />
+    <ExportDialog v-model:visible="showExport" :tab="tab" :total="total" />
   </div>
 </template>
 

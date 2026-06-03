@@ -1,5 +1,33 @@
 <template>
   <div class="conn-tree">
+    <div class="connection-search-bar" :class="{ compact }">
+      <transition name="connection-search-fade">
+        <div v-if="!compact || searchOpen" class="connection-search">
+          <el-input
+            ref="searchInputRef"
+            v-model="search"
+            size="small"
+            clearable
+            placeholder="搜索连接、主机、库名"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+        </div>
+      </transition>
+      <el-tooltip v-if="compact" content="搜索连接" placement="right">
+        <el-button
+          class="toggle-search-btn"
+          :class="{ active: searchOpen || Boolean(search) }"
+          size="small"
+          text
+          @click.stop="toggleSearch"
+        >
+          <el-icon><Search /></el-icon>
+        </el-button>
+      </el-tooltip>
+    </div>
     <div v-for="(group, gname) in grouped" :key="gname" class="group">
       <div class="group-header" @click="toggleGroup(gname)">
         <el-icon class="chevron" :class="{ expanded: expanded[gname] }"><CaretRight /></el-icon>
@@ -18,6 +46,9 @@
             <el-icon><Connection /></el-icon>
           </div>
           <span class="conn-name">{{ conn.name }}</span>
+          <el-tag size="small" class="env-tag" :type="getConnectionEnvironment(conn).tone">
+            {{ getConnectionEnvironment(conn).label }}
+          </el-tag>
           <el-tag size="small" class="db-tag" :type="dbTagType(conn.db_type)">{{ conn.db_type }}</el-tag>
         </div>
       </div>
@@ -25,12 +56,28 @@
     <div v-if="!connections.length" class="empty">
       <el-icon :size="28"><DocumentAdd /></el-icon>
       <span>暂无连接</span>
+      <el-button
+        v-if="authStore.isAdmin"
+        size="small"
+        type="primary"
+        @click.stop="emit('new-connection')"
+      >
+        <el-icon><Plus /></el-icon>
+        新建连接
+      </el-button>
+    </div>
+    <div v-else-if="!filteredConnections.length" class="empty">
+      <el-icon :size="28"><Search /></el-icon>
+      <span>没有匹配的连接</span>
     </div>
 
     <!-- context menu -->
     <div v-if="menuConn && authStore.isAdmin" class="ctx-menu" :style="menuStyle">
       <div class="ctx-item" @click="onEdit">
         <el-icon><Edit /></el-icon> 编辑
+      </div>
+      <div class="ctx-item" @click="onCopy">
+        <el-icon><CopyDocument /></el-icon> 复制连接
       </div>
       <div class="ctx-item danger" @click="onDelete">
         <el-icon><Delete /></el-icon> 删除
@@ -44,25 +91,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
-import { CaretRight, Connection, DocumentAdd, Edit, Delete } from '@element-plus/icons-vue'
+import { CaretRight, Connection, DocumentAdd, Edit, Delete, Plus, Search, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useConnectionsStore } from '@/stores/connections'
 import { useAuthStore } from '@/stores/auth'
+import { getConnectionEnvironment } from '@/utils/connectionExperience'
+import { buildConnectionSearchText, createConnectionCopy, sortConnectionsByRecentUse } from '@/utils/connectionRecents'
 import ConnectionForm from './ConnectionForm.vue'
 
-const emit = defineEmits<{ (e: 'open-db-tree', connId: string): void }>()
+const props = withDefaults(defineProps<{
+  compact?: boolean
+}>(), {
+  compact: false,
+})
+
+const emit = defineEmits<{
+  (e: 'open-db-tree', connId: string): void
+  (e: 'new-connection'): void
+}>()
 
 const store = useConnectionsStore()
 const authStore = useAuthStore()
-const { connections, activeConnId } = storeToRefs(store)
+const { connections, activeConnId, recentUse } = storeToRefs(store)
 
 const expanded = reactive<Record<string, boolean>>({})
 const menuConn = ref<any>(null)
 const menuStyle = ref({})
 const editVisible = ref(false)
 const editConn = ref<any>(null)
+const search = ref('')
+const searchOpen = ref(false)
+const searchInputRef = ref<any>(null)
+const compact = computed(() => props.compact)
 
 onMounted(() => {
   store.fetchAll()
@@ -73,13 +135,25 @@ onUnmounted(() => {
   document.removeEventListener('click', closeMenu)
 })
 
+watch(() => props.compact, value => {
+  if (!value) searchOpen.value = false
+  if (value && !search.value.trim()) searchOpen.value = false
+})
+
 function closeMenu() {
   menuConn.value = null
 }
 
+const filteredConnections = computed(() => {
+  const keyword = search.value.trim().toLowerCase()
+  const list = sortConnectionsByRecentUse(connections.value, recentUse.value)
+  if (!keyword) return list
+  return list.filter(conn => buildConnectionSearchText(conn).includes(keyword))
+})
+
 const grouped = computed(() => {
   const g: Record<string, any[]> = {}
-  for (const c of connections.value) {
+  for (const c of filteredConnections.value) {
     const key = c.group_name || ''
     if (!g[key]) {
       g[key] = []
@@ -98,6 +172,16 @@ function dbTagType(db_type: string) {
 
 function toggleGroup(name: string) {
   expanded[name] = !expanded[name]
+}
+
+async function toggleSearch() {
+  searchOpen.value = !searchOpen.value
+  if (!searchOpen.value) {
+    search.value = ''
+    return
+  }
+  await nextTick()
+  searchInputRef.value?.focus?.()
 }
 
 async function onConnect(conn: any) {
@@ -123,6 +207,14 @@ function onEdit() {
   editVisible.value = true
 }
 
+function onCopy() {
+  const conn = menuConn.value
+  menuConn.value = null
+  if (!conn) return
+  editConn.value = createConnectionCopy(conn)
+  editVisible.value = true
+}
+
 async function onDelete() {
   const conn = menuConn.value
   menuConn.value = null
@@ -139,6 +231,47 @@ async function onDelete() {
 
 <style scoped>
 .conn-tree { padding: 6px 0; flex: 1; overflow-y: auto; }
+
+.connection-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 10px;
+}
+
+.connection-search-bar.compact {
+  padding-bottom: 4px;
+}
+
+.connection-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.toggle-search-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.toggle-search-btn.active,
+.toggle-search-btn:hover {
+  color: var(--accent-blue);
+  background: var(--glow-blue);
+}
+
+.connection-search-fade-enter-active,
+.connection-search-fade-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.connection-search-fade-enter-from,
+.connection-search-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
+}
 
 .group-header {
   display: flex;
@@ -208,6 +341,14 @@ async function onDelete() {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  border: none;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.env-tag {
+  font-size: 10px;
+  font-weight: 600;
   border: none;
   padding: 1px 5px;
   flex-shrink: 0;

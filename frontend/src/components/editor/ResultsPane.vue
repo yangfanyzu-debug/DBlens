@@ -11,10 +11,15 @@
     <div v-else class="results">
       <el-tabs v-if="queryState.statements.length > 1" type="card" size="small">
         <el-tab-pane v-for="(stmt, i) in queryState.statements" :key="i" :label="`结果 ${i + 1}`">
-          <ResultTable :stmt="stmt" />
+          <ResultTable :stmt="stmt" :conn-id="connId" :database="database" />
         </el-tab-pane>
       </el-tabs>
-      <ResultTable v-else-if="queryState.statements.length === 1" :stmt="queryState.statements[0]" />
+      <ResultTable
+        v-else-if="queryState.statements.length === 1"
+        :stmt="queryState.statements[0]"
+        :conn-id="connId"
+        :database="database"
+      />
     </div>
     <div class="status-bar" v-if="queryState">
       <span v-if="queryState.status === 'success'">
@@ -32,7 +37,7 @@ import { Loading } from '@element-plus/icons-vue'
 import { useQueryStore } from '@/stores/query'
 import ResultTable from './ResultTable.vue'
 
-const props = defineProps<{ queryId: string }>()
+const props = defineProps<{ queryId: string; connId: string; database: string }>()
 const store = useQueryStore()
 const { results } = storeToRefs(store)
 

@@ -1,6 +1,12 @@
 <template>
   <el-dialog v-model="visible" title="导出数据" width="400px">
     <el-form label-width="80px" size="small">
+      <el-form-item label="目标">
+        <span class="export-target">{{ tab.database }} / {{ tab.table }}</span>
+      </el-form-item>
+      <el-form-item label="行数">
+        <span class="export-target">{{ total }} 行</span>
+      </el-form-item>
       <el-form-item label="格式">
         <el-radio-group v-model="format">
           <el-radio value="csv">CSV</el-radio>
@@ -20,7 +26,7 @@ import { ref, computed } from 'vue'
 import type { Tab } from '@/stores/tabs'
 import { exportData } from '@/api/data'
 
-const props = defineProps<{ visible: boolean; tab: Tab }>()
+const props = defineProps<{ visible: boolean; tab: Tab; total: number }>()
 const emit = defineEmits<{ (e: 'update:visible', v: boolean): void }>()
 const visible = computed({ get: () => props.visible, set: v => emit('update:visible', v) })
 const format = ref('csv')
@@ -38,3 +44,11 @@ async function doExport() {
   visible.value = false
 }
 </script>
+
+<style scoped>
+.export-target {
+  color: var(--text-secondary);
+  font-size: 13px;
+  word-break: break-all;
+}
+</style>

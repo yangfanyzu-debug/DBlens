@@ -10,40 +10,59 @@ export class QueryWebSocket {
     this.queryId = queryId
   }
 
-  connect() {
+  connect(): Promise<void> {
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
     const wsUrl = `${protocol}://${location.host}/dblens-api/ws/${this.queryId}`
     console.log('[WS] Connecting to', wsUrl)
-    try {
-      this.ws = new WebSocket(wsUrl)
-      this.ws.onopen = () => {
-        console.log('[WS] Connected', this.queryId)
+
+    return new Promise((resolve) => {
+      let settled = false
+      const settle = () => {
+        if (settled) return
+        settled = true
+        resolve()
       }
-      this.ws.onmessage = (e) => {
-        console.log('[WS] onmessage fired, data length:', e.data.length, 'data:', e.data.slice(0, 200))
-        try {
-          const data = JSON.parse(e.data)
-          console.log('[WS] Parsed, type:', data.type, 'status:', data.status)
-          useQueryStore().setResult(this.queryId, data)
-        } catch (err) {
-          console.error('[WS] JSON parse error:', err, 'raw:', e.data)
+      const timeout = window.setTimeout(settle, 1500)
+
+      try {
+        this.ws = new WebSocket(wsUrl)
+        this.ws.onopen = () => {
+          console.log('[WS] Connected', this.queryId)
+          window.clearTimeout(timeout)
+          settle()
         }
-      }
-      this.ws.onerror = (e) => {
-        console.log('[WS] onerror', e)
-      }
-      this.ws.onclose = (e) => {
-        console.log('[WS] onclose, code:', e.code, 'reason:', e.reason, 'wasClean:', e.wasClean)
-        this.ws = null
-        if (!this.stopped) {
-          console.log('[WS] Unclean close, starting polling fallback')
-          this.startPolling()
+        this.ws.onmessage = (e) => {
+          console.log('[WS] onmessage fired, data length:', e.data.length, 'data:', e.data.slice(0, 200))
+          try {
+            const data = JSON.parse(e.data)
+            console.log('[WS] Parsed, type:', data.type, 'status:', data.status)
+            useQueryStore().setResult(this.queryId, data)
+          } catch (err) {
+            console.error('[WS] JSON parse error:', err, 'raw:', e.data)
+          }
         }
+        this.ws.onerror = (e) => {
+          console.log('[WS] onerror', e)
+          window.clearTimeout(timeout)
+          settle()
+        }
+        this.ws.onclose = (e) => {
+          console.log('[WS] onclose, code:', e.code, 'reason:', e.reason, 'wasClean:', e.wasClean)
+          this.ws = null
+          window.clearTimeout(timeout)
+          settle()
+          if (!this.stopped) {
+            console.log('[WS] Unclean close, starting polling fallback')
+            this.startPolling()
+          }
+        }
+      } catch (err) {
+        console.log('[WS] Exception', err)
+        window.clearTimeout(timeout)
+        this.startPolling()
+        settle()
       }
-    } catch (err) {
-      console.log('[WS] Exception', err)
-      this.startPolling()
-    }
+    })
   }
 
   send(data: object) {

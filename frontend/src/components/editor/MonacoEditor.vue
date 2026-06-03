@@ -76,6 +76,13 @@ function getSelectedText() {
 }
 
 function getValue() { return editor?.getValue() ?? '' }
+function setValue(value: string) { editor?.setValue(value) }
+function insertText(value: string) {
+  const selection = editor?.getSelection()
+  if (!editor || !selection) return
+  editor.executeEdits('query-library', [{ range: selection, text: value, forceMoveMarkers: true }])
+  editor.focus()
+}
 function getSelectedTextOrValue() { return getSqlToExecute(getSelectedText(), getValue()) }
 function layout() { editor?.layout() }
 function format() {
@@ -85,7 +92,7 @@ function format() {
   } catch { /* ignore format errors */ }
 }
 
-defineExpose({ getValue, getSelectedTextOrValue, format, layout })
+defineExpose({ getValue, setValue, insertText, getSelectedTextOrValue, format, layout })
 </script>
 
 <style scoped>

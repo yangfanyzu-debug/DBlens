@@ -24,13 +24,24 @@
         </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="form.password" type="password" show-password />
+          <div v-if="isEdit" class="field-hint">留空表示不修改已保存的密码。</div>
         </el-form-item>
       </template>
       <el-form-item label="数据库名">
-        <el-input v-model="form.database" :placeholder="form.db_type === 'sqlite' ? '文件路径' : '默认数据库'" />
+        <el-input v-model="form.database" :placeholder="form.db_type === 'sqlite' ? '文件路径' : '默认数据库'">
+          <template v-if="form.db_type !== 'sqlite'" #append>
+            <el-button @click="useNameAsDatabase">同连接名</el-button>
+          </template>
+        </el-input>
       </el-form-item>
       <el-form-item label="分组">
         <el-input v-model="form.group_name" />
+      </el-form-item>
+      <el-form-item label="环境">
+        <el-tag :type="getConnectionEnvironment(form).tone">
+          {{ getConnectionEnvironment(form).label }}
+        </el-tag>
+        <span class="env-hint">根据名称、分组、数据库名和主机自动识别</span>
       </el-form-item>
 
       <el-divider>
@@ -54,6 +65,7 @@
         </el-form-item>
         <el-form-item label="SSH 密码">
           <el-input v-model="form.ssh_password" type="password" show-password />
+          <div v-if="isEdit" class="field-hint">留空表示不修改已保存的 SSH 密码。</div>
         </el-form-item>
         <el-form-item label="私钥">
           <el-input v-model="form.ssh_private_key" type="textarea" :rows="3" placeholder="PEM 内容" />
@@ -70,6 +82,15 @@
         <el-switch v-model="form.ssl_enabled" />
       </el-form-item>
     </el-form>
+    <el-alert
+      v-if="testFeedback"
+      class="test-feedback"
+      :type="testFeedback.type"
+      :title="testFeedback.title"
+      :description="testFeedback.detail"
+      show-icon
+      :closable="false"
+    />
 
     <template #footer>
       <div class="drawer-footer">
@@ -91,6 +112,7 @@ import { useConnectionsStore } from '@/stores/connections'
 import { useAuthStore } from '@/stores/auth'
 import { testConnection, testConnectionForm } from '@/api/connections'
 import type { ConnectionForm } from '@/api/connections'
+import { getConnectionEnvironment, getTestFeedback } from '@/utils/connectionExperience'
 
 const props = defineProps<{ visible: boolean; initial?: any }>()
 const emit = defineEmits<{ (e: 'update:visible', v: boolean): void; (e: 'saved'): void }>()
@@ -101,6 +123,7 @@ const visible = computed({ get: () => props.visible, set: v => emit('update:visi
 const isEdit = computed(() => !!props.initial?.id)
 const saving = ref(false)
 const testing = ref(false)
+const testFeedback = ref<ReturnType<typeof getTestFeedback> | null>(null)
 
 const defaultForm = (): ConnectionForm => ({
   name: '', db_type: 'mysql', host: '127.0.0.1', port: 3306,
@@ -115,14 +138,23 @@ const form = ref<ConnectionForm>(defaultForm())
 watch(() => props.initial, (v) => {
   if (v) form.value = { ...defaultForm(), ...v, password: '' }
   else form.value = defaultForm()
+  testFeedback.value = null
 }, { immediate: true })
 
-function reset() { form.value = defaultForm() }
+function reset() {
+  form.value = defaultForm()
+  testFeedback.value = null
+}
 
 function onDbTypeChange(dbType: string) {
   if (dbType === 'doris') form.value.port = 9030
   else if (dbType === 'mysql') form.value.port = 3306
   else if (dbType === 'postgresql') form.value.port = 5432
+  testFeedback.value = null
+}
+
+function useNameAsDatabase() {
+  form.value.database = form.value.name.trim()
 }
 
 async function onSave() {
@@ -137,6 +169,7 @@ async function onSave() {
     ElMessage.success('保存成功')
     emit('saved')
     visible.value = false
+    testFeedback.value = null
   } catch (e: any) {
     ElMessage.error(e.message)
   } finally {
@@ -154,7 +187,8 @@ async function onTest() {
     const r = props.initial?.id
       ? await testConnection(props.initial.id)
       : await testConnectionForm(form.value)
-    ElMessage[r.success ? 'success' : 'error'](r.message)
+    testFeedback.value = getTestFeedback(r, form.value)
+    ElMessage[r.success ? 'success' : 'error'](testFeedback.value.title)
   } catch (e: any) {
     ElMessage.error(e.message)
   } finally {
@@ -180,5 +214,22 @@ async function onTest() {
 .drawer-actions {
   display: flex;
   gap: 8px;
+}
+
+.env-hint {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.field-hint {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.test-feedback {
+  margin-top: 10px;
 }
 </style>

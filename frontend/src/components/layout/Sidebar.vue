@@ -24,28 +24,35 @@
       <div class="section-label">
         <span>连接</span>
       </div>
-      <ConnectionTree @open-db-tree="onOpenDbTree" />
+      <ConnectionTree :compact="Boolean(activeConnId)" @open-db-tree="onOpenDbTree" @new-connection="showForm = true" />
       <!-- 数据库表树折叠面板 -->
-      <div v-if="activeConnId" class="sidebar-divider" aria-hidden="true" />
-      <div v-if="activeConnId" class="db-panel">
-        <div class="db-panel-header" @click="dbPanelOpen = !dbPanelOpen">
-          <el-icon class="db-panel-caret" :class="{ open: dbPanelOpen }">
-            <CaretBottom />
-          </el-icon>
-          <span class="db-panel-title">{{ connections.find(c => c.id === activeConnId)?.name }}</span>
-          <el-tag size="small" class="db-panel-status">已连接</el-tag>
+      <transition name="db-panel-slide">
+        <div v-if="activeConnId" class="db-section">
+          <div class="sidebar-divider" aria-hidden="true" />
+          <div class="db-panel">
+            <div class="db-panel-header" @click="dbPanelOpen = !dbPanelOpen">
+              <el-icon class="db-panel-caret" :class="{ open: dbPanelOpen }">
+                <CaretBottom />
+              </el-icon>
+              <span class="db-panel-title">{{ activeConnection?.name }}</span>
+              <el-tag v-if="activeConnection" size="small" class="db-panel-env" :type="getConnectionEnvironment(activeConnection).tone">
+                {{ getConnectionEnvironment(activeConnection).label }}
+              </el-tag>
+              <el-tag size="small" class="db-panel-status">已连接</el-tag>
+            </div>
+            <div v-show="dbPanelOpen" class="db-panel-body">
+              <DbTree :key="activeConnId" :conn-id="activeConnId" />
+            </div>
+          </div>
         </div>
-        <div v-show="dbPanelOpen" class="db-panel-body">
-          <DbTree :key="activeConnId" :conn-id="activeConnId" />
-        </div>
-      </div>
+      </transition>
     </div>
     <ConnectionForm v-model:visible="showForm" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Plus, CaretBottom } from '@element-plus/icons-vue'
 import { useConnectionsStore } from '@/stores/connections'
 import { useAuthStore } from '@/stores/auth'
@@ -53,18 +60,23 @@ import { storeToRefs } from 'pinia'
 import ConnectionTree from '@/components/connection/ConnectionTree.vue'
 import DbTree from '@/components/browser/DbTree.vue'
 import ConnectionForm from '@/components/connection/ConnectionForm.vue'
+import { getConnectionEnvironment } from '@/utils/connectionExperience'
 
 const showForm = ref(false)
 const store = useConnectionsStore()
 const authStore = useAuthStore()
 const { activeConnId, connections } = storeToRefs(store)
 const dbPanelOpen = ref(false)
+const activeConnection = computed(() => connections.value.find(c => c.id === activeConnId.value))
 
 function onOpenDbTree(connId: string) {
   store.activeConnId = connId
+  dbPanelOpen.value = true
 }
 
-watch(activeConnId, () => { dbPanelOpen.value = false })
+watch(activeConnId, id => {
+  if (id) dbPanelOpen.value = true
+})
 </script>
 
 <style scoped>
@@ -170,6 +182,17 @@ watch(activeConnId, () => { dbPanelOpen.value = false })
   margin-top: 0;
 }
 
+.db-panel-slide-enter-active,
+.db-panel-slide-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.db-panel-slide-enter-from,
+.db-panel-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
 .db-panel-header {
   display: flex;
   align-items: center;
@@ -207,6 +230,12 @@ watch(activeConnId, () => { dbPanelOpen.value = false })
   font-size: 10px;
   background: var(--accent-green);
   color: #fff;
+  border: none;
+  flex-shrink: 0;
+}
+
+.db-panel-env {
+  font-size: 10px;
   border: none;
   flex-shrink: 0;
 }

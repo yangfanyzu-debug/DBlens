@@ -13,13 +13,21 @@ def _default_json(obj):
 class WSManager:
     def __init__(self):
         self.active: Dict[str, WebSocket] = {}
+        self.latest: Dict[str, dict] = {}
 
     async def connect(self, query_id: str, ws: WebSocket):
         await ws.accept()
         self.active[query_id] = ws
         print(f"[WSManager] Registered: {query_id}, total: {len(self.active)}")
+        latest = self.latest.get(query_id)
+        if latest:
+            await ws.send_text(json.dumps(latest, default=_default_json))
+            print(f"[WSManager] Replayed to {query_id}: type={latest.get('type')}, status={latest.get('status')}")
+            if latest.get("status") in {"success", "error", "killed"}:
+                self.latest.pop(query_id, None)
 
     async def send(self, query_id: str, data: dict):
+        self.latest[query_id] = data
         ws = self.active.get(query_id)
         if not ws:
             print(f"[WSManager] No ws for {query_id}")

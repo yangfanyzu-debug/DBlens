@@ -12,6 +12,12 @@
         </template>
       </el-input>
     </div>
+    <transition name="db-loading-fade">
+      <div v-if="loadingRoot" class="db-tree-loading" role="status" aria-live="polite">
+        <el-icon class="loading-icon"><Loading /></el-icon>
+        <span>加载数据库...</span>
+      </div>
+    </transition>
     <el-tree
       ref="treeRef"
       :data="treeData"
@@ -50,7 +56,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import { Grid, Document, View, InfoFilled, CopyDocument, Search } from '@element-plus/icons-vue'
+import { Grid, Document, View, InfoFilled, CopyDocument, Search, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as dbApi from '@/api/databases'
 import { useTabsStore } from '@/stores/tabs'
@@ -66,6 +72,7 @@ const menuData = ref<any>(null)
 const menuStyle = ref({})
 const treeRef = ref<any>(null)
 const filterText = ref('')
+const loadingRoot = ref(false)
 
 watch(() => props.connId, () => {
   treeData.value = []
@@ -100,8 +107,16 @@ function collapseAllDatabases() {
 
 async function loadNode(node: any, resolve: (data: any[]) => void) {
   if (node.level === 0) {
-    const dbs = await dbApi.listDatabases(props.connId)
-    resolve(dbs.map((d: string) => ({ label: d, nodeType: 'database', connId: props.connId, database: d })))
+    loadingRoot.value = true
+    try {
+      const dbs = await dbApi.listDatabases(props.connId)
+      resolve(dbs.map((d: string) => ({ label: d, nodeType: 'database', connId: props.connId, database: d })))
+    } catch (e: any) {
+      ElMessage.error(e.message || '加载数据库失败')
+      resolve([])
+    } finally {
+      loadingRoot.value = false
+    }
     return
   }
   if (node.data.nodeType === 'database') {
@@ -183,6 +198,34 @@ function copyName() {
 }
 .db-tree-search :deep(.el-input__inner) {
   font-size: 12px;
+}
+.db-tree-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 10px 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+}
+.loading-icon {
+  color: var(--accent-blue);
+  animation: db-loading-spin 0.9s linear infinite;
+}
+.db-loading-fade-enter-active,
+.db-loading-fade-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.db-loading-fade-enter-from,
+.db-loading-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+@keyframes db-loading-spin {
+  to { transform: rotate(360deg); }
 }
 .tree-node { display: flex; align-items: center; gap: 5px; font-size: 13px; }
 .node-icon { font-size: 12px; }
