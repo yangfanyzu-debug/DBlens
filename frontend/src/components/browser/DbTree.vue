@@ -60,11 +60,13 @@ import { Grid, Document, View, InfoFilled, CopyDocument, Search, Loading } from 
 import { ElMessage } from 'element-plus'
 import * as dbApi from '@/api/databases'
 import { useTabsStore } from '@/stores/tabs'
+import { useConnectionsStore } from '@/stores/connections'
 import { useSchemaStore } from '@/stores/schema'
 import { collapseTreeNode, expandTreeNode, getTreeStoreRoot, matchesTreeSearch, splitTreeSearchLabel } from '@/utils/treeSearch'
 
 const props = defineProps<{ connId: string }>()
 const tabsStore = useTabsStore()
+const connectionsStore = useConnectionsStore()
 const schemaStore = useSchemaStore()
 
 const treeData = ref<any[]>([])
@@ -120,6 +122,7 @@ async function loadNode(node: any, resolve: (data: any[]) => void) {
     return
   }
   if (node.data.nodeType === 'database') {
+    connectionsStore.setActiveDatabase(props.connId, node.data.database)
     const tables = await dbApi.listTables(props.connId, node.data.database)
     schemaStore.loadSchema(props.connId, node.data.database)
     resolve(tables.map((t: any) => ({
@@ -157,19 +160,25 @@ function onContextMenu(e: MouseEvent, data: any) {
 
 function onNodeClick(data: any) {
   menuData.value = null
+  if (data.nodeType === 'database') {
+    connectionsStore.setActiveDatabase(data.connId, data.database)
+  }
   if (data.nodeType === 'table' || data.nodeType === 'view') {
+    connectionsStore.setActiveDatabase(data.connId, data.database)
     tabsStore.openTableTab(data.connId, data.database, data.table)
   }
 }
 
 function openData() {
   if (!menuData.value) return
+  connectionsStore.setActiveDatabase(menuData.value.connId, menuData.value.database)
   tabsStore.openTableTab(menuData.value.connId, menuData.value.database, menuData.value.table)
   menuData.value = null
 }
 
 function openStructure() {
   if (!menuData.value) return
+  connectionsStore.setActiveDatabase(menuData.value.connId, menuData.value.database)
   tabsStore.openTableTab(menuData.value.connId, menuData.value.database, menuData.value.table)
   menuData.value = null
 }

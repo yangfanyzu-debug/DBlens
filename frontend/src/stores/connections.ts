@@ -23,6 +23,7 @@ function saveRecents(recents: ConnectionUseMap) {
 export const useConnectionsStore = defineStore('connections', () => {
   const connections = ref<Connection[]>([])
   const activeConnId = ref<string | null>(null)
+  const activeDatabaseByConn = ref<Record<string, string>>({})
   const recentUse = ref<ConnectionUseMap>(loadRecents())
 
   async function fetchAll() {
@@ -55,5 +56,9 @@ export const useConnectionsStore = defineStore('connections', () => {
     saveRecents(recentUse.value)
   }
 
-  return { connections, activeConnId, recentUse, fetchAll, create, update, remove, connect }
+  function setActiveDatabase(connId: string, database: string) {
+    activeDatabaseByConn.value[connId] = database
+  }
+
+  return { connections, activeConnId, activeDatabaseByConn, recentUse, fetchAll, create, update, remove, connect, setActiveDatabase }
 })

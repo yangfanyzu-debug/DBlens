@@ -235,7 +235,8 @@ function closeAllTabs() {
 }
 
 function newEditor() {
-  tabsStore.openEditorTab(connectionsStore.activeConnId ?? '')
+  const connId = connectionsStore.activeConnId ?? ''
+  tabsStore.openEditorTab(connId, connectionsStore.activeDatabaseByConn[connId])
 }
 
 onMounted(() => {

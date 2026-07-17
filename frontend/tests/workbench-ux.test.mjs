@@ -9,6 +9,8 @@ const dbTree = readFileSync(new URL('../src/components/browser/DbTree.vue', impo
 const editorTab = readFileSync(new URL('../src/components/editor/EditorTab.vue', import.meta.url), 'utf8')
 const resultTable = readFileSync(new URL('../src/components/editor/ResultTable.vue', import.meta.url), 'utf8')
 const exportDialog = readFileSync(new URL('../src/components/common/ExportDialog.vue', import.meta.url), 'utf8')
+const tabBar = readFileSync(new URL('../src/components/common/TabBar.vue', import.meta.url), 'utf8')
+const connectionsStore = readFileSync(new URL('../src/stores/connections.ts', import.meta.url), 'utf8')
 
 test('connection tree wires search and copy without list timestamps', () => {
   assert.match(connectionTree, /搜索连接、主机、库名/)
@@ -31,6 +33,13 @@ test('database tree shows an animated loading state while root databases load', 
   assert.match(dbTree, /loadingRoot/)
   assert.match(dbTree, /db-tree-loading/)
   assert.match(dbTree, /Loading/)
+})
+
+test('new query uses the database opened in the left tree when available', () => {
+  assert.match(connectionsStore, /activeDatabaseByConn/)
+  assert.match(dbTree, /setActiveDatabase\(props\.connId, node\.data\.database\)/)
+  assert.match(dbTree, /setActiveDatabase\(data\.connId, data\.database\)/)
+  assert.match(tabBar, /openEditorTab\(connId, connectionsStore\.activeDatabaseByConn\[connId\]\)/)
 })
 
 test('connection form explains edit-password behavior and offers database shortcut', () => {
