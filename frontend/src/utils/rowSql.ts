@@ -4,6 +4,10 @@ function quoteIdentifier(name: string) {
   return `\`${name.replace(/`/g, '``')}\``
 }
 
+function quoteTableIdentifier(name: string) {
+  return name.split('.').map(quoteIdentifier).join('.')
+}
+
 export function formatSqlValue(value: any): string {
   if (value === null || value === undefined) return 'NULL'
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL'
@@ -14,10 +18,11 @@ export function formatSqlValue(value: any): string {
 
 export function buildInsertSql(table: string, columns: string[], rows: SqlRow[]) {
   const colSql = columns.map(quoteIdentifier).join(', ')
+  const tableSql = quoteTableIdentifier(table)
   return rows
     .map(row => {
       const values = columns.map(col => formatSqlValue(row[col])).join(', ')
-      return `INSERT INTO ${quoteIdentifier(table)} (${colSql}) VALUES (${values});`
+      return `INSERT INTO ${tableSql} (${colSql}) VALUES (${values});`
     })
     .join('\n')
 }
@@ -31,7 +36,7 @@ export function buildUpdateSql(table: string, columns: string[], rows: SqlRow[],
       const assignments = updateColumns
         .map(col => `${quoteIdentifier(col)} = ${formatSqlValue(row[col])}`)
         .join(', ')
-      return `UPDATE ${quoteIdentifier(table)} SET ${assignments} WHERE ${quoteIdentifier(whereColumn)} = ${formatSqlValue(row[whereColumn])};`
+      return `UPDATE ${quoteTableIdentifier(table)} SET ${assignments} WHERE ${quoteIdentifier(whereColumn)} = ${formatSqlValue(row[whereColumn])};`
     })
     .join('\n')
 }

@@ -115,6 +115,7 @@ import ExportDialog from '@/components/common/ExportDialog.vue'
 import { formatCellValue } from '@/utils/displayFormat'
 import { buildTableChangePayload, isInsertedRowChange } from '@/utils/tableChanges'
 import { buildInsertSql, buildUpdateSql } from '@/utils/rowSql'
+import { copyTextToClipboard } from '@/utils/clipboard'
 
 const props = defineProps<{ tab: Tab }>()
 
@@ -294,23 +295,12 @@ async function copyText(text: string) {
     return
   }
   try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      throw new Error('Clipboard API unavailable')
-    }
-  } catch {
-    const textarea = document.createElement('textarea')
-    textarea.value = text
-    textarea.style.position = 'fixed'
-    textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
-    textarea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textarea)
+    await copyTextToClipboard(text)
+    ElMessage.success('SQL 已复制')
+    closeContextMenu()
+  } catch (e: any) {
+    ElMessage.error(e.message || '复制失败')
   }
-  ElMessage.success('SQL 已复制')
-  closeContextMenu()
 }
 
 function onRowContextMenu(row: Record<string, any>, _column: any, event: MouseEvent) {

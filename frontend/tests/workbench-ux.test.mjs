@@ -84,6 +84,14 @@ test('result table remembers column widths and warns about likely row limits', (
   assert.match(resultTable, /limitNotice/)
 })
 
+test('result table exposes row context menu for copying SQL from inferred table', () => {
+  assert.match(resultTable, /@row-contextmenu="onRowContextMenu"/)
+  assert.match(resultTable, /inferSingleSelectTableName/)
+  assert.match(resultTable, /复制本行 INSERT/)
+  assert.match(resultTable, /复制本行 UPDATE/)
+  assert.match(resultTable, /无法识别单一目标表/)
+})
+
 test('export dialog displays target table, format, and total rows', () => {
   assert.match(exportDialog, /{{ tab\.database }} \/ {{ tab\.table }}/)
   assert.match(exportDialog, /{{ total }} 行/)
