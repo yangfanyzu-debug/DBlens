@@ -1,6 +1,17 @@
 <template>
   <div class="editor-tab">
     <EditorToolbar :tab="tab" @execute="onExecute" @kill="onKill" @format="onFormat" @db-change="onDbChange" />
+    <button class="ai-floating-trigger" :class="{ 'ai-panel-open': aiPanelOpen }" type="button" @click="openAiPanel">
+      <el-icon><ChatDotRound /></el-icon>
+      <span>AI</span>
+    </button>
+    <AiChatPanel
+      v-model:visible="aiPanelOpen"
+      :context="currentAiContext"
+      :get-context="getCurrentAiContext"
+      @insert-sql="insertAiSql"
+      @replace-sql="replaceAiSql"
+    />
     <div ref="assistRef" class="query-assist-shell">
       <div class="query-assist">
         <div class="assist-switch" role="tablist" aria-label="查询助手">
@@ -164,17 +175,20 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Clock, CollectionTag, Search, Star } from '@element-plus/icons-vue'
+import { ChatDotRound, Clock, CollectionTag, Search, Star } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import type { Tab } from '@/stores/tabs'
 import { useQueryStore } from '@/stores/query'
 import { useConnectionsStore } from '@/stores/connections'
+import { useSchemaStore } from '@/stores/schema'
+import type { AiChatContext } from '@/utils/aiChat'
 import * as queryApi from '@/api/query'
 import { QueryWebSocket } from '@/utils/websocket'
 import { assessSqlRisk } from '@/utils/sqlRisk'
 import { getConnectionEndpoint, getConnectionEnvironment } from '@/utils/connectionExperience'
 import { emitDbSchemaChanged, queryResultChangesSchema } from '@/utils/schemaRefresh'
 import EditorToolbar from './EditorToolbar.vue'
+import AiChatPanel from './AiChatPanel.vue'
 import MonacoEditor from './MonacoEditor.vue'
 import ResultsPane from './ResultsPane.vue'
 
@@ -192,6 +206,7 @@ interface LibraryItem {
 
 const queryStore = useQueryStore()
 const connStore = useConnectionsStore()
+const schemaStore = useSchemaStore()
 const { savedQueries } = storeToRefs(queryStore)
 const monacoRef = ref<any>(null)
 const bodyRef = ref<HTMLElement>()
@@ -199,6 +214,8 @@ const assistRef = ref<HTMLElement>()
 const currentQueryId = ref<string>('')
 const currentDb = ref(props.tab.database ?? '')
 const currentConnection = computed(() => connStore.connections.find(c => c.id === props.tab.connId))
+const aiPanelOpen = ref(false)
+const aiContextVersion = ref(0)
 const assistMode = ref<'history' | 'saved' | null>(null)
 const assistSearch = ref('')
 const assistScope = ref<'all' | 'connection' | 'database'>('connection')
@@ -244,6 +261,10 @@ const activeLibraryItems = computed(() => assistMode.value === 'history' ? visib
 const selectedQuery = computed(() =>
   activeLibraryItems.value.find(item => item.key === selectedQueryKey.value) ?? activeLibraryItems.value[0] ?? null,
 )
+const currentAiContext = computed<AiChatContext>(() => {
+  aiContextVersion.value
+  return getCurrentAiContext()
+})
 
 const editorHeight = ref(300)
 const resultsHeight = ref(200)
@@ -310,6 +331,47 @@ function onFormat() {
 
 function onDbChange(db: string) {
   currentDb.value = db
+  void loadCurrentSchema()
+}
+
+function getCurrentAiContext(): AiChatContext {
+  return {
+    connId: props.tab.connId,
+    database: currentDb.value,
+    editorSql: monacoRef.value?.getValue?.() ?? '',
+    selectedSql: monacoRef.value?.getSelectedText?.() ?? '',
+    schema: schemaStore.getSchema(props.tab.connId, currentDb.value),
+  }
+}
+
+function refreshAiContext() {
+  aiContextVersion.value += 1
+}
+
+async function loadCurrentSchema() {
+  if (!props.tab.connId || !currentDb.value) return
+  try {
+    await schemaStore.loadSchema(props.tab.connId, currentDb.value)
+    refreshAiContext()
+  } catch {
+    // AI can still work with the current SQL when schema loading fails.
+  }
+}
+
+function openAiPanel() {
+  refreshAiContext()
+  aiPanelOpen.value = true
+  void loadCurrentSchema()
+}
+
+function insertAiSql(sql: string) {
+  monacoRef.value?.insertText?.(sql)
+  refreshAiContext()
+}
+
+function replaceAiSql(sql: string) {
+  monacoRef.value?.setValue?.(sql)
+  refreshAiContext()
 }
 
 function setAssistMode(mode: 'history' | 'saved') {
@@ -458,6 +520,7 @@ onMounted(() => {
     resultsHeight.value = h - editorHeight.value
   }
   nextTick(() => monacoRef.value?.layout())
+  void loadCurrentSchema()
   document.addEventListener('mousedown', onAssistOutsideClick)
 })
 
@@ -469,6 +532,35 @@ onUnmounted(() => {
 
 <style scoped>
 .editor-tab { display: flex; flex-direction: column; height: 100%; }
+
+.ai-floating-trigger {
+  position: fixed;
+  right: 18px;
+  top: 92px;
+  z-index: 79;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 58px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(88, 166, 255, 0.5);
+  border-radius: var(--radius-md);
+  background: var(--accent-blue);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  box-shadow: 0 10px 24px rgba(45, 99, 216, 0.28);
+  cursor: pointer;
+}
+
+.ai-floating-trigger.ai-panel-open {
+  right: min(462px, calc(100vw - 84px));
+  background: var(--bg-primary);
+  color: var(--accent-blue);
+}
 
 .query-assist-shell {
   position: relative;

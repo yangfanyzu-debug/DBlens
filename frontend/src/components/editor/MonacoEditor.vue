@@ -92,7 +92,7 @@ function format() {
   } catch { /* ignore format errors */ }
 }
 
-defineExpose({ getValue, setValue, insertText, getSelectedTextOrValue, format, layout })
+defineExpose({ getValue, setValue, insertText, getSelectedText, getSelectedTextOrValue, format, layout })
 </script>
 
 <style scoped>

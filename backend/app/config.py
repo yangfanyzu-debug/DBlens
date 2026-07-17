@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     RUOYI_USERINFO_PATH: str = "/system/user/getInfo"
     RUOYI_TOKEN_HEADER: str = "Authorization"
     RUOYI_TIMEOUT_SECONDS: int = 10
+    AI_PROVIDER: str = "ark"
+    AI_API_KEY: str = ""
+    AI_BASE_URL: str = "https://ark.cn-beijing.volces.com/api/coding/v3"
+    AI_MODEL: str = "glm-5.2"
+    AI_TIMEOUT_SECONDS: int = 60
 
     model_config = ConfigDict(env_file=".env")
 
