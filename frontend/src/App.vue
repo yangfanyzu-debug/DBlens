@@ -4,14 +4,19 @@ import { RouterView } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useThemeStore } from '@/stores/theme'
 import { useAuthStore } from '@/stores/auth'
+import { buildRuoYiLoginUrl } from '@/utils/ruoyiLogin'
 
 const theme = useThemeStore()
 const authStore = useAuthStore()
 const { loading, ready, error, isAuthenticated } = storeToRefs(authStore)
 const ruoyiLoginUrl = computed(() => {
-  const configuredUrl = import.meta.env.VITE_RUOYI_LOGIN_URL?.trim()
-  if (configuredUrl) return configuredUrl
-  return `${window.location.origin}/login`
+  return buildRuoYiLoginUrl({
+    configuredLoginUrl: import.meta.env.VITE_RUOYI_LOGIN_URL,
+    origin: window.location.origin,
+    currentPath: window.location.pathname,
+    currentSearch: window.location.search,
+    currentHash: window.location.hash,
+  })
 })
 
 watch(() => theme.current, (t) => {

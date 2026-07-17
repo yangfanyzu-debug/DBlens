@@ -17,6 +17,12 @@ test('connection tree shows inferred environment tags', () => {
   assert.match(tree, /env-tag/)
 })
 
+test('connection tree reloads connections after authentication succeeds', () => {
+  assert.match(tree, /authStore\.isAuthenticated/)
+  assert.match(tree, /loadConnections/)
+  assert.match(tree, /setTimeout\(\(\) => loadConnections\(false\), 300\)/)
+})
+
 test('connection form renders detailed test feedback', () => {
   assert.match(form, /testFeedback/)
   assert.match(form, /getTestFeedback/)

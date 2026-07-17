@@ -125,15 +125,20 @@ const search = ref('')
 const searchOpen = ref(false)
 const searchInputRef = ref<any>(null)
 const compact = computed(() => props.compact)
+let retryTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(() => {
-  store.fetchAll()
   document.addEventListener('click', closeMenu)
 })
 
 onUnmounted(() => {
+  if (retryTimer) clearTimeout(retryTimer)
   document.removeEventListener('click', closeMenu)
 })
+
+watch(() => authStore.isAuthenticated, isAuthenticated => {
+  if (isAuthenticated) loadConnections()
+}, { immediate: true })
 
 watch(() => props.compact, value => {
   if (!value) searchOpen.value = false
@@ -142,6 +147,18 @@ watch(() => props.compact, value => {
 
 function closeMenu() {
   menuConn.value = null
+}
+
+async function loadConnections(retry = true) {
+  try {
+    await store.fetchAll()
+  } catch (e: any) {
+    if (!retry || !authStore.isAuthenticated) {
+      ElMessage.error(e.message)
+      return
+    }
+    retryTimer = setTimeout(() => loadConnections(false), 300)
+  }
 }
 
 const filteredConnections = computed(() => {
