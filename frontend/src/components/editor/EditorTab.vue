@@ -259,7 +259,7 @@ async function onExecute(sql?: string) {
   wsClient?.stop()
   const executionDb = currentDb.value
   wsClient = new QueryWebSocket(queryId, data => {
-    if (data?.status === 'success' && queryResultChangesSchema(data.statements)) {
+    if (queryResultChangesSchema(data?.statements)) {
       emitDbSchemaChanged({ connId: props.tab.connId, database: executionDb })
     }
   })

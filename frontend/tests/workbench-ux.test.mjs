@@ -87,9 +87,20 @@ test('result table remembers column widths and warns about likely row limits', (
 test('result table exposes row context menu for copying SQL from inferred table', () => {
   assert.match(resultTable, /@row-contextmenu="onRowContextMenu"/)
   assert.match(resultTable, /inferSingleSelectTableName/)
+  assert.match(resultTable, /dbApi\.listColumns/)
   assert.match(resultTable, /复制本行 INSERT/)
   assert.match(resultTable, /复制本行 UPDATE/)
   assert.match(resultTable, /无法识别单一目标表/)
+})
+
+test('result table guards copied SQL with table columns and primary key', () => {
+  assert.match(resultTable, /invalidResultColumns/)
+  assert.match(resultTable, /primaryKeyColumn/)
+  assert.match(resultTable, /canCopyInsert/)
+  assert.match(resultTable, /canCopyUpdate/)
+  assert.match(resultTable, /结果列不是目标表原始字段/)
+  assert.match(resultTable, /结果中缺少主键字段/)
+  assert.match(resultTable, /buildUpdateSql\(inferredTable\.value, props\.stmt\.columns, \[contextRow\.value\], primaryKeyColumn\.value\)/)
 })
 
 test('export dialog displays target table, format, and total rows', () => {

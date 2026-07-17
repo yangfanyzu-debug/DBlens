@@ -34,6 +34,17 @@ test('buildUpdateSql uses the first column as where column by default', () => {
   )
 })
 
+test('buildUpdateSql accepts an explicit where column', () => {
+  const sql = buildUpdateSql('categories', ['label', 'id', 'sort_order'], [
+    { id: 5, label: 'test', sort_order: 10 },
+  ], 'id')
+
+  assert.equal(
+    sql,
+    "UPDATE `categories` SET `label` = 'test', `sort_order` = 10 WHERE `id` = 5;",
+  )
+})
+
 test('buildUpdateSql skips rows without where values', () => {
   assert.equal(buildUpdateSql('categories', ['id', 'label'], [{ id: null, label: 'x' }]), '')
 })

@@ -84,3 +84,10 @@ test('DbTree exposes manual refresh for loaded schema nodes', () => {
   assert.match(dbTree, /schemaStore\.clearConnection/)
   assert.match(dbTree, /treeKey\.value \+= 1/)
 })
+
+test('DbTree only reports refresh success after a refresh succeeds', () => {
+  assert.match(dbTree, /let refreshed = false/)
+  assert.match(dbTree, /refreshed = await refreshDatabaseNode/)
+  assert.match(dbTree, /refreshed = results\.some\(Boolean\)/)
+  assert.match(dbTree, /if \(refreshed\) ElMessage\.success/)
+})

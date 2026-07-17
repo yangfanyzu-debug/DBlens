@@ -223,17 +223,20 @@ async function refreshTree() {
     const loadedNodes = getLoadedDatabaseNodes()
     const activeDatabase = connectionsStore.activeDatabaseByConn[props.connId]
     const activeNode = loadedNodes.find((node: any) => node.data.database === activeDatabase)
+    let refreshed = false
 
     if (activeNode) {
-      await refreshDatabaseNode(activeDatabase)
+      refreshed = await refreshDatabaseNode(activeDatabase)
     } else if (loadedNodes.length) {
-      await Promise.all(loadedNodes.map((node: any) => refreshDatabaseNode(node.data.database)))
+      const results = await Promise.all(loadedNodes.map((node: any) => refreshDatabaseNode(node.data.database)))
+      refreshed = results.some(Boolean)
     } else {
       schemaStore.clearConnection(props.connId)
       treeKey.value += 1
       await nextTick()
+      refreshed = true
     }
-    ElMessage.success('表树已刷新')
+    if (refreshed) ElMessage.success('表树已刷新')
   } finally {
     refreshingTree.value = false
   }
