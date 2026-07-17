@@ -535,31 +535,43 @@ onUnmounted(() => {
 
 .ai-floating-trigger {
   position: fixed;
-  right: 18px;
-  top: 92px;
+  right: 24px;
+  bottom: 24px;
   z-index: 79;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 58px;
-  height: 34px;
-  padding: 0 12px;
-  border: 1px solid rgba(88, 166, 255, 0.5);
-  border-radius: var(--radius-md);
-  background: var(--accent-blue);
+  min-width: 64px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(88, 166, 255, 0.58);
+  border-radius: 8px;
+  background: #0f5fd7;
   color: #fff;
   font-size: 13px;
   font-weight: 700;
   font-family: inherit;
-  box-shadow: 0 10px 24px rgba(45, 99, 216, 0.28);
+  box-shadow: 0 14px 34px rgba(15, 95, 215, 0.34);
   cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.ai-floating-trigger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(15, 95, 215, 0.38);
 }
 
 .ai-floating-trigger.ai-panel-open {
-  right: min(462px, calc(100vw - 84px));
-  background: var(--bg-primary);
-  color: var(--accent-blue);
+  background: #0b1220;
+  border-color: rgba(148, 163, 184, 0.55);
+}
+
+@media (max-width: 720px) {
+  .ai-floating-trigger {
+    right: 14px;
+    bottom: 14px;
+  }
 }
 
 .query-assist-shell {
