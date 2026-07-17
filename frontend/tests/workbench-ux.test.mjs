@@ -88,3 +88,12 @@ test('export dialog displays target table, format, and total rows', () => {
   assert.match(exportDialog, /{{ tab\.database }} \/ {{ tab\.table }}/)
   assert.match(exportDialog, /{{ total }} 行/)
 })
+
+test('data grid exposes row context menu for copying SQL', () => {
+  const dataGrid = readFileSync(new URL('../src/components/table/DataGrid.vue', import.meta.url), 'utf8')
+  assert.match(dataGrid, /@row-contextmenu="onRowContextMenu"/)
+  assert.match(dataGrid, /复制本行 INSERT/)
+  assert.match(dataGrid, /复制选中行 UPDATE/)
+  assert.match(dataGrid, /buildInsertSql/)
+  assert.match(dataGrid, /buildUpdateSql/)
+})

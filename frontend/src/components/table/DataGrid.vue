@@ -26,6 +26,7 @@
       border
       height="calc(100% - 80px)"
       @selection-change="selectedRows = $event"
+      @row-contextmenu="onRowContextMenu"
       v-loading="loading"
     >
       <el-table-column type="selection" width="40" />
@@ -92,17 +93,28 @@
 
     <!-- Export Dialog -->
     <ExportDialog v-model:visible="showExport" :tab="tab" :total="total" />
+
+    <div v-if="contextRow" class="row-sql-menu" :style="contextMenuStyle">
+      <button type="button" @click="copyRowInsert">复制本行 INSERT</button>
+      <button type="button" @click="copyRowUpdate">复制本行 UPDATE</button>
+      <template v-if="selectedRows.length">
+        <div class="menu-divider" />
+        <button type="button" @click="copySelectedInsert">复制选中行 INSERT</button>
+        <button type="button" @click="copySelectedUpdate">复制选中行 UPDATE</button>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { Tab } from '@/stores/tabs'
 import * as dataApi from '@/api/data'
 import ExportDialog from '@/components/common/ExportDialog.vue'
 import { formatCellValue } from '@/utils/displayFormat'
 import { buildTableChangePayload, isInsertedRowChange } from '@/utils/tableChanges'
+import { buildInsertSql, buildUpdateSql } from '@/utils/rowSql'
 
 const props = defineProps<{ tab: Tab }>()
 
@@ -123,11 +135,20 @@ const previewVisible = ref(false)
 const previewSqls = ref<any[]>([])
 const committing = ref(false)
 const showExport = ref(false)
+const contextRow = ref<Record<string, any> | null>(null)
+const contextMenuStyle = ref<Record<string, string>>({})
 
 // Track original values for change detection
 const originalRows = ref<Record<string, any>[]>([])
 
-onMounted(loadData)
+onMounted(() => {
+  loadData()
+  document.addEventListener('click', closeContextMenu)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeContextMenu)
+})
 
 async function loadData() {
   if (!props.tab.connId || !props.tab.database || !props.tab.table) return
@@ -196,6 +217,10 @@ function cancelEdit() {
   editCell.value = null
 }
 
+function closeContextMenu() {
+  contextRow.value = null
+}
+
 function isCellModified(rowIdx: number, colName: string) {
   return pendingChanges.value.some(
     c => c.op === 'update' && c.pk_val === String(originalRows.value[rowIdx]?.[columns.value[0]?.name])
@@ -258,6 +283,61 @@ async function commitChanges() {
     committing.value = false
   }
 }
+
+function columnNames() {
+  return columns.value.map(col => col.name)
+}
+
+async function copyText(text: string) {
+  if (!text) {
+    ElMessage.warning('没有可复制的 SQL')
+    return
+  }
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      throw new Error('Clipboard API unavailable')
+    }
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
+  ElMessage.success('SQL 已复制')
+  closeContextMenu()
+}
+
+function onRowContextMenu(row: Record<string, any>, _column: any, event: MouseEvent) {
+  event.preventDefault()
+  contextRow.value = row
+  contextMenuStyle.value = { top: `${event.clientY}px`, left: `${event.clientX}px` }
+}
+
+function copyRowInsert() {
+  if (!contextRow.value || !props.tab.table) return
+  copyText(buildInsertSql(props.tab.table, columnNames(), [contextRow.value]))
+}
+
+function copyRowUpdate() {
+  if (!contextRow.value || !props.tab.table) return
+  copyText(buildUpdateSql(props.tab.table, columnNames(), [contextRow.value]))
+}
+
+function copySelectedInsert() {
+  if (!props.tab.table) return
+  copyText(buildInsertSql(props.tab.table, columnNames(), selectedRows.value))
+}
+
+function copySelectedUpdate() {
+  if (!props.tab.table) return
+  copyText(buildUpdateSql(props.tab.table, columnNames(), selectedRows.value))
+}
 </script>
 
 <style scoped>
@@ -307,6 +387,41 @@ async function commitChanges() {
 .cell-modified { background: #fef3c7; border-radius: 4px; padding: 1px 4px; }
 .preview-sql { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
 .preview-sql code { font-size: 12px; word-break: break-all; }
+
+.row-sql-menu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 168px;
+  padding: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.row-sql-menu button {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 4px;
+  padding: 7px 9px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-sql-menu button:hover {
+  background: var(--glow-blue);
+  color: var(--text-primary);
+}
+
+.menu-divider {
+  height: 1px;
+  margin: 5px 2px;
+  background: var(--border-muted);
+}
 
 :deep(.el-table) {
   --el-table-border-color: var(--border-muted);
