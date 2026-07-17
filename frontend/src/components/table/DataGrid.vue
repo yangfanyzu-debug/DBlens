@@ -102,6 +102,7 @@ import type { Tab } from '@/stores/tabs'
 import * as dataApi from '@/api/data'
 import ExportDialog from '@/components/common/ExportDialog.vue'
 import { formatCellValue } from '@/utils/displayFormat'
+import { buildTableChangePayload, isInsertedRowChange } from '@/utils/tableChanges'
 
 const props = defineProps<{ tab: Tab }>()
 
@@ -168,6 +169,10 @@ function commitEdit(rowIdx: number, colName: string, row: any) {
   const newVal = editValue.value
   if (String(oldVal) !== newVal) {
     rows.value[rowIdx][colName] = newVal
+    if (isInsertedRowChange(row, pendingChanges.value)) {
+      editCell.value = null
+      return
+    }
     // Find primary key column (first column as fallback)
     const pkCol = columns.value[0]?.name
     const existing = pendingChanges.value.findIndex(
@@ -209,6 +214,13 @@ function addRow() {
 function deleteRows() {
   const pkCol = columns.value[0]?.name
   for (const row of selectedRows.value) {
+    const insertIdx = pendingChanges.value.findIndex(c => c.op === 'insert' && c.values === row)
+    if (insertIdx >= 0) {
+      pendingChanges.value.splice(insertIdx, 1)
+      const idx = rows.value.indexOf(row)
+      if (idx >= 0) rows.value.splice(idx, 1)
+      continue
+    }
     pendingChanges.value.push({ op: 'delete', pk_col: pkCol, pk_val: String(row[pkCol]) })
     const idx = rows.value.indexOf(row)
     if (idx >= 0) rows.value.splice(idx, 1)
@@ -218,8 +230,13 @@ function deleteRows() {
 
 async function showPreview() {
   if (!pendingChanges.value.length) return
+  const changes = buildTableChangePayload(pendingChanges.value, columns.value.map(col => col.name))
+  if (!changes.length) {
+    ElMessage.warning('没有可提交的变更')
+    return
+  }
   const result = await dataApi.previewChanges(
-    props.tab.connId!, props.tab.database!, props.tab.table!, pendingChanges.value
+    props.tab.connId!, props.tab.database!, props.tab.table!, changes
   )
   previewSqls.value = result.changes
   previewVisible.value = true
@@ -228,8 +245,9 @@ async function showPreview() {
 async function commitChanges() {
   committing.value = true
   try {
+    const changes = buildTableChangePayload(pendingChanges.value, columns.value.map(col => col.name))
     await dataApi.applyChanges(
-      props.tab.connId!, props.tab.database!, props.tab.table!, pendingChanges.value
+      props.tab.connId!, props.tab.database!, props.tab.table!, changes
     )
     ElMessage.success('变更已提交')
     previewVisible.value = false
