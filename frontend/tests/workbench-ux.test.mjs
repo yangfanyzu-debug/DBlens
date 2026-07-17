@@ -41,6 +41,7 @@ test('new query uses the database opened in the left tree when available', () =>
   assert.match(dbTree, /setActiveDatabase\(props\.connId, node\.data\.database\)/)
   assert.match(dbTree, /setActiveDatabase\(data\.connId, data\.database\)/)
   assert.match(tabBar, /openEditorTab\(connId, connectionsStore\.activeDatabaseByConn\[connId\]\)/)
+  assert.match(tabBar, /new-query-btn/)
 })
 
 test('connection form explains edit-password behavior and offers database shortcut', () => {

@@ -49,7 +49,7 @@
 
     <div class="tab-actions">
       <el-tooltip content="新建查询" placement="bottom">
-        <button type="button" class="action-btn" @click="newEditor">
+        <button type="button" class="action-btn new-query-btn" @click="newEditor">
           <el-icon :size="14"><Plus /></el-icon>
           <span class="btn-label">新建查询</span>
         </button>
@@ -498,6 +498,22 @@ watch(
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   border-color: var(--el-color-primary-light-5);
+}
+
+.new-query-btn {
+  padding: 0 12px;
+  border-color: rgba(64, 158, 255, 0.42);
+  background: linear-gradient(180deg, var(--el-color-primary) 0%, #2563eb 100%);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.22);
+}
+
+.new-query-btn:hover {
+  border-color: rgba(64, 158, 255, 0.7);
+  background: linear-gradient(180deg, #5aa8ff 0%, var(--el-color-primary) 100%);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
 }
 
 .btn-label {
