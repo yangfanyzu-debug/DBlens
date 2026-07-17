@@ -14,6 +14,7 @@ const connectionsStore = readFileSync(new URL('../src/stores/connections.ts', im
 
 test('connection tree wires search and copy without list timestamps', () => {
   assert.match(connectionTree, /搜索连接、主机、库名/)
+  assert.match(connectionTree, /connection-section-title/)
   assert.match(connectionTree, /createConnectionCopy/)
   assert.doesNotMatch(connectionTree, /formatLastUsed|last-used/)
 })

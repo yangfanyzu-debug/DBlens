@@ -1,6 +1,7 @@
 <template>
   <div class="conn-tree">
-    <div class="connection-search-bar" :class="{ compact }">
+    <div class="connection-section-header" :class="{ compact }">
+      <span class="connection-section-title">连接</span>
       <transition name="connection-search-fade">
         <div v-if="!compact || searchOpen" class="connection-search">
           <el-input
@@ -249,15 +250,24 @@ async function onDelete() {
 <style scoped>
 .conn-tree { padding: 6px 0; flex: 1; overflow-y: auto; }
 
-.connection-search-bar {
+.connection-section-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 12px 10px;
+  padding: 0 12px 8px 14px;
 }
 
-.connection-search-bar.compact {
-  padding-bottom: 4px;
+.connection-section-header.compact {
+  padding-bottom: 6px;
+}
+
+.connection-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .connection-search {

@@ -21,9 +21,6 @@
       </div>
     </div>
     <div class="sidebar-body">
-      <div class="section-label">
-        <span>连接</span>
-      </div>
       <ConnectionTree :compact="Boolean(activeConnId)" @open-db-tree="onOpenDbTree" @new-connection="showForm = true" />
       <!-- 数据库表树折叠面板 -->
       <transition name="db-panel-slide">
@@ -155,17 +152,6 @@ watch(activeConnId, id => {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 16px 0 20px;
-}
-
-.section-label {
-  display: flex;
-  align-items: center;
-  padding: 0 14px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
 }
 
 /* 数据库表树折叠面板 */
