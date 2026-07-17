@@ -173,6 +173,7 @@ import * as queryApi from '@/api/query'
 import { QueryWebSocket } from '@/utils/websocket'
 import { assessSqlRisk } from '@/utils/sqlRisk'
 import { getConnectionEndpoint, getConnectionEnvironment } from '@/utils/connectionExperience'
+import { emitDbSchemaChanged, queryResultChangesSchema } from '@/utils/schemaRefresh'
 import EditorToolbar from './EditorToolbar.vue'
 import MonacoEditor from './MonacoEditor.vue'
 import ResultsPane from './ResultsPane.vue'
@@ -256,13 +257,18 @@ async function onExecute(sql?: string) {
   currentQueryId.value = queryId
   queryStore.setRunning(queryId)
   wsClient?.stop()
-  wsClient = new QueryWebSocket(queryId)
+  const executionDb = currentDb.value
+  wsClient = new QueryWebSocket(queryId, data => {
+    if (data?.status === 'success' && queryResultChangesSchema(data.statements)) {
+      emitDbSchemaChanged({ connId: props.tab.connId, database: executionDb })
+    }
+  })
   await wsClient.connect()
-  await queryApi.executeQuery(props.tab.connId, currentDb.value, code, queryId)
+  await queryApi.executeQuery(props.tab.connId, executionDb, code, queryId)
   queryStore.recordHistory({
     sql: code,
     connId: props.tab.connId,
-    database: currentDb.value,
+    database: executionDb,
     ran_at: Date.now(),
   })
 }

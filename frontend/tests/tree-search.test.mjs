@@ -53,17 +53,34 @@ test('splitTreeSearchLabel returns highlighted match segments', () => {
 
 test('DbTree renders a database object search input', () => {
   assert.match(dbTree, /placeholder="搜索库 \/ 表 \/ 视图"/)
+  assert.match(dbTree, /aria-label="刷新表树"/)
+  assert.match(dbTree, /node-key="id"/)
   assert.match(dbTree, /filter-node-method="filterNode"/)
 })
 
 test('DbTree keeps databases collapsed until the user searches or expands them', () => {
   const expansionCalls = dbTree.match(/expandAllDatabases\(\)/g) ?? []
   assert.equal(expansionCalls.length, 2)
-  assert.doesNotMatch(dbTree, /onMounted/)
+  assert.doesNotMatch(dbTree, /onMounted\(\(\) => \{\s*expandAllDatabases/s)
 })
 
 test('DbTree collapses database nodes when search is cleared', () => {
   assert.match(dbTree, /watch\(filterText, async \(value, previousValue\)/)
   assert.match(dbTree, /collapseAllDatabases\(\)/)
   assert.match(dbTree, /if \(!query && previousValue\?\.trim\(\)\) collapseAllDatabases\(\)/)
+})
+
+test('DbTree refreshes loaded database nodes after schema changes', () => {
+  assert.match(dbTree, /onDbSchemaChanged/)
+  assert.match(dbTree, /refreshDatabaseNode/)
+  assert.match(dbTree, /schemaStore\.clearDatabase/)
+  assert.match(dbTree, /updateKeyChildren/)
+})
+
+test('DbTree exposes manual refresh for loaded schema nodes', () => {
+  assert.match(dbTree, /@click="refreshTree"/)
+  assert.match(dbTree, /refreshingTree/)
+  assert.match(dbTree, /getLoadedDatabaseNodes/)
+  assert.match(dbTree, /schemaStore\.clearConnection/)
+  assert.match(dbTree, /treeKey\.value \+= 1/)
 })

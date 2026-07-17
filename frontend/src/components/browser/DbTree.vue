@@ -11,6 +11,16 @@
           <el-icon><Search /></el-icon>
         </template>
       </el-input>
+      <button
+        class="tree-refresh-btn"
+        type="button"
+        title="刷新表树"
+        aria-label="刷新表树"
+        :disabled="refreshingTree"
+        @click="refreshTree"
+      >
+        <el-icon :class="{ spinning: refreshingTree }"><Refresh /></el-icon>
+      </button>
     </div>
     <transition name="db-loading-fade">
       <div v-if="loadingRoot" class="db-tree-loading" role="status" aria-live="polite">
@@ -19,7 +29,9 @@
       </div>
     </transition>
     <el-tree
+      :key="treeKey"
       ref="treeRef"
+      node-key="id"
       :data="treeData"
       :props="{ label: 'label', children: 'children', isLeaf: 'isLeaf' }"
       lazy
@@ -55,14 +67,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
-import { Grid, Document, View, InfoFilled, CopyDocument, Search, Loading } from '@element-plus/icons-vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { Grid, Document, View, InfoFilled, CopyDocument, Search, Loading, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as dbApi from '@/api/databases'
 import { useTabsStore } from '@/stores/tabs'
 import { useConnectionsStore } from '@/stores/connections'
 import { useSchemaStore } from '@/stores/schema'
 import { collapseTreeNode, expandTreeNode, getTreeStoreRoot, matchesTreeSearch, splitTreeSearchLabel } from '@/utils/treeSearch'
+import { onDbSchemaChanged } from '@/utils/schemaRefresh'
 
 const props = defineProps<{ connId: string }>()
 const tabsStore = useTabsStore()
@@ -75,6 +88,20 @@ const menuStyle = ref({})
 const treeRef = ref<any>(null)
 const filterText = ref('')
 const loadingRoot = ref(false)
+const refreshingTree = ref(false)
+const treeKey = ref(0)
+let removeSchemaChangedListener: (() => void) | null = null
+
+onMounted(() => {
+  removeSchemaChangedListener = onDbSchemaChanged(detail => {
+    if (detail.connId !== props.connId) return
+    refreshDatabaseNode(detail.database)
+  })
+})
+
+onUnmounted(() => {
+  removeSchemaChangedListener?.()
+})
 
 watch(() => props.connId, () => {
   treeData.value = []
@@ -112,7 +139,7 @@ async function loadNode(node: any, resolve: (data: any[]) => void) {
     loadingRoot.value = true
     try {
       const dbs = await dbApi.listDatabases(props.connId)
-      resolve(dbs.map((d: string) => ({ label: d, nodeType: 'database', connId: props.connId, database: d })))
+      resolve(dbs.map(createDatabaseNode))
     } catch (e: any) {
       ElMessage.error(e.message || '加载数据库失败')
       resolve([])
@@ -123,21 +150,93 @@ async function loadNode(node: any, resolve: (data: any[]) => void) {
   }
   if (node.data.nodeType === 'database') {
     connectionsStore.setActiveDatabase(props.connId, node.data.database)
-    const tables = await dbApi.listTables(props.connId, node.data.database)
-    schemaStore.loadSchema(props.connId, node.data.database)
-    resolve(tables.map((t: any) => ({
-      label: t.name,
-      nodeType: t.type === 'VIEW' ? 'view' : 'table',
-      connId: props.connId,
-      database: node.data.database,
-      table: t.name,
-      isLeaf: true,
-    })))
+    resolve(await loadTableNodes(node.data.database))
     await nextTick()
     treeRef.value?.filter(filterText.value)
     return
   }
   resolve([])
+}
+
+function databaseNodeKey(database: string) {
+  return `${props.connId}:db:${database}`
+}
+
+function tableNodeKey(database: string, table: string) {
+  return `${props.connId}:table:${database}:${table}`
+}
+
+function createDatabaseNode(database: string) {
+  return { id: databaseNodeKey(database), label: database, nodeType: 'database', connId: props.connId, database }
+}
+
+function createTableNode(database: string, table: { name: string; type: string }) {
+  return {
+    id: tableNodeKey(database, table.name),
+    label: table.name,
+    nodeType: table.type === 'VIEW' ? 'view' : 'table',
+    connId: props.connId,
+    database,
+    table: table.name,
+    isLeaf: true,
+  }
+}
+
+async function loadTableNodes(database: string) {
+  const tables = await dbApi.listTables(props.connId, database)
+  schemaStore.loadSchema(props.connId, database)
+  return tables.map((table: any) => createTableNode(database, table))
+}
+
+async function refreshDatabaseNode(database: string) {
+  const key = databaseNodeKey(database)
+  const node = treeRef.value?.store?.getNode?.(key)
+  if (!node?.loaded) return false
+
+  schemaStore.clearDatabase(props.connId, database)
+  try {
+    const children = await loadTableNodes(database)
+    if (treeRef.value?.updateKeyChildren) {
+      treeRef.value.updateKeyChildren(key, children)
+    } else if (node.doCreateChildren) {
+      node.childNodes = []
+      node.doCreateChildren(children)
+    }
+    await nextTick()
+    treeRef.value?.filter(filterText.value)
+    return true
+  } catch (e: any) {
+    ElMessage.error(e.message || '刷新表列表失败')
+    return false
+  }
+}
+
+function getLoadedDatabaseNodes() {
+  const root = treeRef.value?.store ? getTreeStoreRoot(treeRef.value.store) : null
+  return (root?.childNodes ?? []).filter((node: any) => node?.data?.nodeType === 'database' && node.loaded)
+}
+
+async function refreshTree() {
+  if (refreshingTree.value) return
+  refreshingTree.value = true
+  try {
+    const loadedNodes = getLoadedDatabaseNodes()
+    const activeDatabase = connectionsStore.activeDatabaseByConn[props.connId]
+    const activeNode = loadedNodes.find((node: any) => node.data.database === activeDatabase)
+
+    if (activeNode) {
+      await refreshDatabaseNode(activeDatabase)
+    } else if (loadedNodes.length) {
+      await Promise.all(loadedNodes.map((node: any) => refreshDatabaseNode(node.data.database)))
+    } else {
+      schemaStore.clearConnection(props.connId)
+      treeKey.value += 1
+      await nextTick()
+    }
+    ElMessage.success('表树已刷新')
+  } finally {
+    refreshingTree.value = false
+  }
 }
 
 function loadedDescendantMatches(node: any, query: string): boolean {
@@ -197,8 +296,15 @@ function copyName() {
   position: sticky;
   top: 0;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 2px 10px 8px;
   background: linear-gradient(180deg, var(--bg-secondary) 70%, rgba(0, 0, 0, 0));
+}
+.db-tree-search :deep(.el-input) {
+  flex: 1;
+  min-width: 0;
 }
 .db-tree-search :deep(.el-input__wrapper) {
   background: var(--bg-primary);
@@ -207,6 +313,31 @@ function copyName() {
 }
 .db-tree-search :deep(.el-input__inner) {
   font-size: 12px;
+}
+.tree-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.tree-refresh-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  background: var(--bg-tertiary);
+}
+.tree-refresh-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+.spinning {
+  animation: db-loading-spin 0.9s linear infinite;
 }
 .db-tree-loading {
   display: flex;

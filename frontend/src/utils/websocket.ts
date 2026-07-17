@@ -3,11 +3,13 @@ import { useQueryStore } from '@/stores/query'
 export class QueryWebSocket {
   private ws: WebSocket | null = null
   private queryId: string
+  private onResult?: (data: any) => void
   private pollTimer: number | null = null
   private stopped = false
 
-  constructor(queryId: string) {
+  constructor(queryId: string, onResult?: (data: any) => void) {
     this.queryId = queryId
+    this.onResult = onResult
   }
 
   connect(): Promise<void> {
@@ -37,6 +39,7 @@ export class QueryWebSocket {
             const data = JSON.parse(e.data)
             console.log('[WS] Parsed, type:', data.type, 'status:', data.status)
             useQueryStore().setResult(this.queryId, data)
+            this.onResult?.(data)
           } catch (err) {
             console.error('[WS] JSON parse error:', err, 'raw:', e.data)
           }

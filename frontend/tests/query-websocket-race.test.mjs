@@ -10,3 +10,11 @@ test('QueryWebSocket.connect resolves before executeQuery is called', () => {
   assert.match(editorTab, /await wsClient\.connect\(\)/)
   assert.ok(editorTab.indexOf('await wsClient.connect()') < editorTab.indexOf('await queryApi.executeQuery'))
 })
+
+test('editor emits schema refresh after successful schema-changing SQL', () => {
+  assert.match(editorTab, /queryResultChangesSchema/)
+  assert.match(editorTab, /emitDbSchemaChanged/)
+  assert.match(editorTab, /const executionDb = currentDb\.value/)
+  assert.match(websocket, /private onResult/)
+  assert.match(websocket, /this\.onResult\?\.\(data\)/)
+})

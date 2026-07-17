@@ -36,5 +36,9 @@ export const useSchemaStore = defineStore('schema', () => {
     delete cache.value[connId]
   }
 
-  return { cache, loadSchema, getSchema, clearConnection }
+  function clearDatabase(connId: string, database: string) {
+    if (cache.value[connId]) delete cache.value[connId][database]
+  }
+
+  return { cache, loadSchema, getSchema, clearConnection, clearDatabase }
 })
