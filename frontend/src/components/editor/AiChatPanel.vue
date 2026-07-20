@@ -3,7 +3,10 @@
     <aside v-if="visible" class="ai-chat-panel" role="dialog" aria-label="DBLens AI 助手">
       <header class="ai-chat-header">
         <div class="ai-chat-title">
-          <span class="ai-chat-badge">AI</span>
+          <span class="ai-chat-badge" aria-hidden="true">
+            <span class="ai-mini-core" />
+            <span class="ai-mini-ring" />
+          </span>
           <div>
             <strong>DBLens 助手</strong>
             <small>基于当前数据库上下文</small>
@@ -34,6 +37,9 @@
               type="button"
               @click="usePrompt(prompt.prompt)"
             >
+              <span class="ai-prompt-icon" :class="`tone-${prompt.tone}`">
+                <el-icon><component :is="prompt.icon" /></el-icon>
+              </span>
               <strong>{{ prompt.title }}</strong>
               <span>{{ prompt.description }}</span>
             </button>
@@ -87,7 +93,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Close, Promotion } from '@element-plus/icons-vue'
+import { Close, Connection, DataAnalysis, MagicStick, Promotion, Warning } from '@element-plus/icons-vue'
 import { streamAiChat } from '@/api/ai'
 import { appendAiDelta, extractSqlBlocks, type AiChatContext, type AiMessage } from '@/utils/aiChat'
 
@@ -115,21 +121,29 @@ const promptSamples = [
     title: 'SQL 生成',
     description: '按自然语言生成查询',
     prompt: '根据当前数据库结构，帮我生成一个查询 SQL。',
+    icon: MagicStick,
+    tone: 'blue',
   },
   {
     title: 'SQL 解释',
     description: '说明当前语句逻辑',
     prompt: '解释当前 SQL 的执行意图和关键条件。',
+    icon: DataAnalysis,
+    tone: 'cyan',
   },
   {
     title: '风险检查',
     description: '识别更新和删除风险',
     prompt: '检查当前 SQL 是否有风险，并给出更安全的写法。',
+    icon: Warning,
+    tone: 'amber',
   },
   {
     title: '结构分析',
     description: '梳理表关系和字段',
     prompt: '根据当前库的表结构，帮我分析相关表和字段该怎么使用。',
+    icon: Connection,
+    tone: 'slate',
   },
 ]
 const schemaCountText = computed(() => {
@@ -256,18 +270,58 @@ async function copySql(sql: string) {
 }
 
 .ai-chat-badge {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  background: #0f5fd7;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0;
+  background: #0b1220;
   box-shadow: 0 8px 18px rgba(15, 95, 215, 0.28);
+}
+
+.ai-mini-core {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  background: #58a6ff;
+  box-shadow: 0 0 14px rgba(88, 166, 255, 0.72);
+}
+
+.ai-mini-core::before,
+.ai-mini-core::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.ai-mini-core::before {
+  left: 3px;
+}
+
+.ai-mini-core::after {
+  right: 3px;
+}
+
+.ai-mini-ring {
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-top-color: transparent;
+  border-radius: 999px;
+  animation: ai-mini-spin 2.4s linear infinite;
+}
+
+@keyframes ai-mini-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ai-chat-header strong {
@@ -382,7 +436,7 @@ async function copySql(sql: string) {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  min-height: 74px;
+  min-height: 92px;
   padding: 11px 12px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
@@ -392,6 +446,34 @@ async function copySql(sql: string) {
   font-size: 12px;
   text-align: left;
   cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.ai-prompt-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 2px;
+  border-radius: 8px;
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent-blue);
+}
+
+.ai-prompt-icon.tone-cyan {
+  background: rgba(20, 184, 166, 0.12);
+  color: #0d9488;
+}
+
+.ai-prompt-icon.tone-amber {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+}
+
+.ai-prompt-icon.tone-slate {
+  background: rgba(71, 85, 105, 0.12);
+  color: #475569;
 }
 
 .ai-prompt-card strong {

@@ -1,9 +1,13 @@
 <template>
   <div class="editor-tab">
     <EditorToolbar :tab="tab" @execute="onExecute" @kill="onKill" @format="onFormat" @db-change="onDbChange" />
-    <button class="ai-floating-trigger" :class="{ 'ai-panel-open': aiPanelOpen }" type="button" @click="openAiPanel">
-      <el-icon><ChatDotRound /></el-icon>
-      <span>AI</span>
+    <button class="ai-floating-trigger" :class="{ 'ai-panel-open': aiPanelOpen }" type="button" title="打开 DBLens AI 助手" @click="openAiPanel">
+      <span class="ai-orbit-icon" aria-hidden="true">
+        <span class="ai-orbit-core" />
+        <span class="ai-orbit-ring" />
+        <span class="ai-orbit-dot" />
+      </span>
+      <span class="sr-only">打开 AI 助手</span>
     </button>
     <AiChatPanel
       v-model:visible="aiPanelOpen"
@@ -175,7 +179,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ChatDotRound, Clock, CollectionTag, Search, Star } from '@element-plus/icons-vue'
+import { Clock, CollectionTag, Search, Star } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import type { Tab } from '@/stores/tabs'
 import { useQueryStore } from '@/stores/query'
@@ -541,16 +545,15 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-width: 64px;
-  height: 42px;
-  padding: 0 14px;
-  border: 1px solid rgba(88, 166, 255, 0.58);
-  border-radius: 8px;
-  background: #0f5fd7;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid rgba(88, 166, 255, 0.62);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent),
+    #0f5fd7;
   color: #fff;
-  font-size: 13px;
-  font-weight: 700;
   font-family: inherit;
   box-shadow: 0 14px 34px rgba(15, 95, 215, 0.34);
   cursor: pointer;
@@ -565,6 +568,93 @@ onUnmounted(() => {
 .ai-floating-trigger.ai-panel-open {
   background: #0b1220;
   border-color: rgba(148, 163, 184, 0.55);
+}
+
+.ai-orbit-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.ai-orbit-core {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.65);
+}
+
+.ai-orbit-core::before,
+.ai-orbit-core::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: #0f5fd7;
+}
+
+.ai-orbit-core::before {
+  left: 3px;
+}
+
+.ai-orbit-core::after {
+  right: 3px;
+}
+
+.ai-orbit-ring {
+  position: absolute;
+  inset: 1px;
+  border: 1.5px solid rgba(255, 255, 255, 0.78);
+  border-left-color: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  animation: ai-orbit-spin 2.8s linear infinite;
+}
+
+.ai-orbit-dot {
+  position: absolute;
+  top: 1px;
+  right: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #9dd6ff;
+  box-shadow: 0 0 10px rgba(157, 214, 255, 0.9);
+  animation: ai-orbit-blink 1.6s ease-in-out infinite;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes ai-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ai-orbit-blink {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 @media (max-width: 720px) {
