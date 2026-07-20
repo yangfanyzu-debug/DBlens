@@ -41,16 +41,32 @@ export async function streamAiChat(
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let completed = false
+  let failed = false
+  const streamHandlers: StreamHandlers = {
+    ...handlers,
+    onDone() {
+      completed = true
+      handlers.onDone?.()
+    },
+    onError(message) {
+      failed = true
+      handlers.onError?.(message)
+    },
+  }
 
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
-    buffer = consumeSseBuffer(buffer, handlers)
+    buffer = consumeSseBuffer(buffer, streamHandlers)
   }
 
   buffer += decoder.decode()
-  consumeSseBuffer(buffer, handlers)
+  consumeSseBuffer(buffer, streamHandlers)
+  if (!completed && !failed) {
+    throw new Error('AI 响应意外中断，请重试')
+  }
 }
 
 function buildHeaders() {
