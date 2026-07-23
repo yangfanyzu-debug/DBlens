@@ -11,6 +11,8 @@ const resultTable = readFileSync(new URL('../src/components/editor/ResultTable.v
 const exportDialog = readFileSync(new URL('../src/components/common/ExportDialog.vue', import.meta.url), 'utf8')
 const tabBar = readFileSync(new URL('../src/components/common/TabBar.vue', import.meta.url), 'utf8')
 const connectionsStore = readFileSync(new URL('../src/stores/connections.ts', import.meta.url), 'utf8')
+const structureView = readFileSync(new URL('../src/components/table/StructureView.vue', import.meta.url), 'utf8')
+const databaseApi = readFileSync(new URL('../src/api/databases.ts', import.meta.url), 'utf8')
 
 test('connection tree wires search and copy without list timestamps', () => {
   assert.match(connectionTree, /搜索连接、主机、库名/)
@@ -117,4 +119,12 @@ test('data grid exposes row context menu for copying SQL', () => {
   assert.match(dataGrid, /复制选中行 UPDATE/)
   assert.match(dataGrid, /buildInsertSql/)
   assert.match(dataGrid, /buildUpdateSql/)
+})
+
+test('table structure view lazily loads and copies the create table schema', () => {
+  assert.match(structureView, /label="建表语句"/)
+  assert.match(structureView, /loadTableDdl/)
+  assert.match(structureView, /copyTableDdl/)
+  assert.match(structureView, /copyTextToClipboard/)
+  assert.match(databaseApi, /tables\/\$\{table\}\/ddl/)
 })

@@ -15,5 +15,8 @@ export const listIndexes = (connId: string, database: string, table: string) =>
 export const listForeignKeys = (connId: string, database: string, table: string) =>
   http.get(`/databases/${database}/tables/${table}/foreign_keys`, { params: { conn_id: connId } }).then(r => r.data)
 
+export const getTableDdl = (connId: string, database: string, table: string) =>
+  http.get<{ ddl: string }>(`/databases/${database}/tables/${table}/ddl`, { params: { conn_id: connId } }).then(r => r.data)
+
 export const getSchema = (connId: string, database: string) =>
   http.get(`/databases/${database}/schema`, { params: { conn_id: connId } }).then(r => r.data)

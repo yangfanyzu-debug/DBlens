@@ -44,21 +44,50 @@
         </el-table>
         </div>
       </el-tab-pane>
+
+      <el-tab-pane label="建表语句" name="ddl">
+        <div v-loading="ddlLoading" class="ddl-pane">
+          <div class="ddl-toolbar">
+            <div>
+              <strong>Schema DDL</strong>
+              <span>{{ tab.database }} / {{ tab.table }}</span>
+            </div>
+            <el-tooltip content="复制建表语句" placement="bottom">
+              <button
+                class="copy-ddl-btn"
+                type="button"
+                :disabled="!tableDdl"
+                aria-label="复制建表语句"
+                @click="copyTableDdl"
+              >
+                <el-icon><DocumentCopy /></el-icon>
+              </button>
+            </el-tooltip>
+          </div>
+          <pre v-if="tableDdl" class="ddl-code">{{ tableDdl }}</pre>
+          <el-empty v-else-if="!ddlLoading" description="暂无可用的建表语句" />
+        </div>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { DocumentCopy } from '@element-plus/icons-vue'
 import type { Tab } from '@/stores/tabs'
 import * as dbApi from '@/api/databases'
+import { copyTextToClipboard } from '@/utils/clipboard'
 
 const props = defineProps<{ tab: Tab }>()
 const activeTab = ref('columns')
 const columns = ref<any[]>([])
 const indexes = ref<any[]>([])
 const foreignKeys = ref<any[]>([])
+const tableDdl = ref('')
+const ddlLoading = ref(false)
+const ddlLoaded = ref(false)
 
 onMounted(async () => {
   if (!props.tab.connId || !props.tab.database || !props.tab.table) return
@@ -75,6 +104,32 @@ onMounted(async () => {
     ElMessage.error(e.message)
   }
 })
+
+watch(activeTab, tab => {
+  if (tab === 'ddl') void loadTableDdl()
+})
+
+async function loadTableDdl() {
+  if (ddlLoaded.value || ddlLoading.value) return
+  if (!props.tab.connId || !props.tab.database || !props.tab.table) return
+
+  ddlLoading.value = true
+  try {
+    const result = await dbApi.getTableDdl(props.tab.connId, props.tab.database, props.tab.table)
+    tableDdl.value = result.ddl
+    ddlLoaded.value = true
+  } catch (e: any) {
+    ElMessage.error(e.message)
+  } finally {
+    ddlLoading.value = false
+  }
+}
+
+async function copyTableDdl() {
+  if (!tableDdl.value) return
+  await copyTextToClipboard(tableDdl.value)
+  ElMessage.success('建表语句已复制')
+}
 </script>
 
 <style scoped>
@@ -153,5 +208,82 @@ onMounted(async () => {
   padding: 16px;
   height: 100%;
   box-sizing: border-box;
+}
+
+.ddl-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 240px;
+  background: var(--bg-secondary);
+}
+
+.ddl-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-muted);
+  background: var(--bg-primary);
+}
+
+.ddl-toolbar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ddl-toolbar strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.ddl-toolbar span {
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-ddl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.copy-ddl-btn:hover:not(:disabled) {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.copy-ddl-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ddl-code {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre;
+  tab-size: 2;
 }
 </style>

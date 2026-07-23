@@ -47,6 +47,15 @@ async def list_foreign_keys(database: str, table: str, conn_id: str):
     return schema_inspector.list_foreign_keys(conn_id, db_type, database, table)
 
 
+@router.get("/{database}/tables/{table}/ddl")
+async def get_table_ddl(database: str, table: str, conn_id: str):
+    db_type = _get_db_type(conn_id)
+    ddl = schema_inspector.get_table_ddl(conn_id, db_type, database, table)
+    if not ddl:
+        raise HTTPException(status_code=404, detail="未找到表结构定义")
+    return {"ddl": ddl}
+
+
 @router.get("/{database}/schema")
 async def get_schema(database: str, conn_id: str):
     db_type = _get_db_type(conn_id)

@@ -127,6 +127,81 @@ def list_foreign_keys(conn_id: str, db_type: str, database: str, table: str) -> 
     return []
 
 
+def get_table_ddl(conn_id: str, db_type: str, database: str, table: str) -> str:
+    if db_type == "mysql":
+        qualified_table = f"{_quote_identifier(database, '`')}.{_quote_identifier(table, '`')}"
+        rows = _exec(conn_id, f"SHOW CREATE TABLE {qualified_table}")
+        return _ensure_semicolon(rows[0][1]) if rows else ""
+
+    if db_type == "sqlite":
+        rows = _exec(
+            conn_id,
+            "SELECT sql FROM sqlite_master "
+            "WHERE name=:tbl AND type IN ('table', 'view')",
+            {"tbl": table},
+        )
+        return _ensure_semicolon(rows[0][0]) if rows and rows[0][0] else ""
+
+    if db_type == "postgresql":
+        return _build_postgresql_ddl(conn_id, table)
+
+    return ""
+
+
+def _build_postgresql_ddl(conn_id: str, table: str) -> str:
+    qualified_name = f"public.{_quote_identifier(table, chr(34))}"
+    columns = _exec(
+        conn_id,
+        "SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod), "
+        "a.attnotnull, pg_get_expr(ad.adbin, ad.adrelid) "
+        "FROM pg_attribute a "
+        "LEFT JOIN pg_attrdef ad ON ad.adrelid=a.attrelid AND ad.adnum=a.attnum "
+        "WHERE a.attrelid=to_regclass(:qualified) AND a.attnum>0 AND NOT a.attisdropped "
+        "ORDER BY a.attnum",
+        {"qualified": qualified_name},
+    )
+    constraints = _exec(
+        conn_id,
+        "SELECT conname, pg_get_constraintdef(oid, true) "
+        "FROM pg_constraint WHERE conrelid=to_regclass(:qualified) ORDER BY conname",
+        {"qualified": qualified_name},
+    )
+    indexes = _exec(
+        conn_id,
+        "SELECT pg_get_indexdef(i.indexrelid) "
+        "FROM pg_index i "
+        "LEFT JOIN pg_constraint c ON c.conindid=i.indexrelid "
+        "WHERE i.indrelid=to_regclass(:qualified) AND c.oid IS NULL "
+        "ORDER BY i.indexrelid::regclass::text",
+        {"qualified": qualified_name},
+    )
+
+    definitions = []
+    for name, data_type, not_null, default in columns:
+        column = f"{_quote_identifier(name, chr(34))} {data_type}"
+        if default is not None:
+            column += f" DEFAULT {default}"
+        if not_null:
+            column += " NOT NULL"
+        definitions.append(f"  {column}")
+    for name, definition in constraints:
+        definitions.append(f"  CONSTRAINT {_quote_identifier(name, chr(34))} {definition}")
+
+    table_name = f'{_quote_identifier("public", chr(34))}.{_quote_identifier(table, chr(34))}'
+    ddl = f"CREATE TABLE {table_name} (\n" + ",\n".join(definitions) + "\n);"
+    index_statements = [_ensure_semicolon(row[0]) for row in indexes if row[0]]
+    return "\n\n".join([ddl, *index_statements])
+
+
+def _quote_identifier(value: str, quote: str) -> str:
+    return f"{quote}{value.replace(quote, quote * 2)}{quote}"
+
+
+def _ensure_semicolon(statement: str) -> str:
+    normalized = statement.rstrip()
+    return normalized if normalized.endswith(";") else f"{normalized};"
+
+
 def get_full_schema(conn_id: str, db_type: str, database: str) -> dict:
     tables = list_tables(conn_id, db_type, database)
     schema = {"tables": [t["name"] for t in tables], "columns": {}}
