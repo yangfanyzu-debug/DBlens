@@ -86,7 +86,13 @@ def connect(conn: Connection):
     if conn.ssl_enabled and conn.db_type in MYSQL_COMPATIBLE_DB_TYPES:
         connect_args["ssl"] = {"ca": conn.ssl_ca, "cert": conn.ssl_cert, "key": conn.ssl_key}
 
-    engine = create_engine(url, pool_size=5, max_overflow=10, connect_args=connect_args)
+    engine = create_engine(
+        url,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
+        connect_args=connect_args,
+    )
     _pool[conn.id] = (engine, tunnel)
 
 

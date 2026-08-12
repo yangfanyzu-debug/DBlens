@@ -140,6 +140,45 @@ class ConnectionManagerUrlTestCase(unittest.TestCase):
         self.assertEqual(parsed.host, "192.168.0.140")
         self.assertEqual(parsed.port, 9030)
 
+    def test_saved_connection_pool_pre_pings_before_reuse(self):
+        from app.models.connection import Connection
+        from app.services import connection_manager
+
+        captured = {}
+
+        class FakeEngine:
+            pass
+
+        def fake_create_engine(url, *args, **kwargs):
+            captured["url"] = url
+            captured["kwargs"] = kwargs
+            return FakeEngine()
+
+        conn = Connection(
+            id="conn-1",
+            name="demo",
+            db_type="mysql",
+            host="192.168.0.140",
+            port=3306,
+            username="app_user",
+            password_enc="encrypted",
+            database="dblens",
+        )
+
+        with patch.object(connection_manager.crypto, "decrypt", return_value="Qzmp@2018"), patch.object(
+            connection_manager,
+            "create_engine",
+            side_effect=fake_create_engine,
+        ):
+            connection_manager.connect(conn)
+
+        try:
+            self.assertEqual(captured["kwargs"]["pool_pre_ping"], True)
+            self.assertEqual(captured["kwargs"]["pool_size"], 5)
+            self.assertEqual(captured["kwargs"]["max_overflow"], 10)
+        finally:
+            connection_manager._pool.pop(conn.id, None)
+
 
 if __name__ == "__main__":
     unittest.main()
