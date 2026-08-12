@@ -5,6 +5,11 @@ from sqlalchemy.engine import make_url
 
 
 class ConnectionManagerUrlTestCase(unittest.TestCase):
+    def test_meta_database_pool_recycles_before_mysql_timeout(self):
+        from app.database import engine
+
+        self.assertEqual(engine.sync_engine.pool._recycle, 1800)
+
     def test_saved_mysql_connection_url_preserves_at_sign_in_password(self):
         from app.models.connection import Connection
         from app.services import connection_manager
