@@ -95,6 +95,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Close, Connection, DataAnalysis, MagicStick, Promotion, Warning } from '@element-plus/icons-vue'
 import { streamAiChat } from '@/api/ai'
+import { copyTextToClipboard } from '@/utils/clipboard'
 import { appendAiDelta, extractSqlBlocks, type AiChatContext, type AiMessage } from '@/utils/aiChat'
 
 const props = defineProps<{
@@ -210,8 +211,12 @@ function usePrompt(prompt: string) {
 }
 
 async function copySql(sql: string) {
-  await navigator.clipboard?.writeText(sql)
-  ElMessage.success('已复制 SQL')
+  try {
+    await copyTextToClipboard(sql)
+    ElMessage.success('已复制 SQL')
+  } catch {
+    ElMessage.error('复制失败，请选中 SQL 手动复制')
+  }
 }
 </script>
 

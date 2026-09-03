@@ -34,3 +34,22 @@ test('monaco editor exposes selected text separately for AI context', () => {
   assert.match(monacoEditor, /function getSelectedText\(\)/)
   assert.match(monacoEditor, /defineExpose\(\{[^}]*getSelectedText/s)
 })
+
+test('AI copy button reports success only after copy completes and handles failure', async () => {
+  const body = aiChatPanel.match(/async function copySql\(sql: string\) \{([\s\S]*?)\n\}/)[1]
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+  const copySql = new AsyncFunction('sql', 'copyTextToClipboard', 'ElMessage', body)
+  const notifications = []
+  const message = {
+    success: () => notifications.push('success'),
+    error: () => notifications.push('error'),
+  }
+  await copySql('SELECT 1;', async (sql) => {
+    assert.equal(sql, 'SELECT 1;')
+    assert.deepEqual(notifications, [])
+  }, message)
+  assert.deepEqual(notifications, ['success'])
+  notifications.length = 0
+  await copySql('SELECT 1;', async () => { throw new Error('Denied') }, message)
+  assert.deepEqual(notifications, ['error'])
+})
