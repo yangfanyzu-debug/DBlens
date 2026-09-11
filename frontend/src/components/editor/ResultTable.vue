@@ -13,6 +13,7 @@
         :closable="false"
       />
       <el-table
+        ref="resultTable"
         :data="tableData"
         size="small"
         border
@@ -20,6 +21,7 @@
         style="width:100%"
         @header-dragend="onHeaderDragEnd"
         @row-contextmenu="onRowContextMenu"
+        @row-dblclick="openRowDetails"
       >
         <el-table-column
           v-for="col in stmt.columns"
@@ -37,6 +39,7 @@
         </el-table-column>
       </el-table>
       <div v-if="contextRow" class="result-sql-menu" :style="contextMenuStyle">
+        <button type="button" @click="openRowDetails(contextRow)">查看行详情</button>
         <template v-if="inferredTable">
           <button type="button" :disabled="!canCopyInsert" @click="copyRowInsert">复制本行 INSERT（{{ inferredTable }}）</button>
           <button type="button" :disabled="!canCopyUpdate" @click="copyRowUpdate">复制本行 UPDATE（{{ inferredTable }}）</button>
@@ -46,6 +49,7 @@
           <button type="button" disabled>无法识别单一目标表</button>
         </template>
       </div>
+      <RowDetailsDrawer v-model="detailsVisible" v-model:index="detailsIndex" :columns="stmt.columns" :rows="detailRows" />
     </template>
   </div>
 </template>
@@ -60,6 +64,7 @@ import { getColumnStorageKey, getResultLimitNotice } from '@/utils/resultTableUx
 import { buildInsertSql, buildUpdateSql } from '@/utils/rowSql'
 import { inferSingleSelectTableName } from '@/utils/sqlTableName'
 import { copyTextToClipboard } from '@/utils/clipboard'
+import RowDetailsDrawer from './RowDetailsDrawer.vue'
 
 const props = defineProps<{ stmt: QueryResult; connId: string; database: string }>()
 const contextRow = ref<Record<string, any> | null>(null)
@@ -67,6 +72,24 @@ const contextMenuStyle = ref<Record<string, string>>({})
 const tableColumns = ref<Array<{ name: string; primary_key?: boolean }>>([])
 const schemaLoading = ref(false)
 const schemaError = ref('')
+const resultTable = ref<any>(null)
+const detailsVisible = ref(false)
+const detailsIndex = ref(0)
+const detailRows = ref<Record<string, any>[]>([])
+
+function openRowDetails(row: Record<string, any>) {
+  detailRows.value = [...(resultTable.value?.store?.states?.data?.value ?? tableData.value)]
+  detailsIndex.value = detailRows.value.indexOf(row)
+  if (detailsIndex.value < 0) return
+  detailsVisible.value = true
+  closeContextMenu()
+}
+
+watch(() => props.stmt, () => {
+  detailsVisible.value = false
+  detailRows.value = []
+  closeContextMenu()
+})
 
 const tableData = computed(() =>
   props.stmt.rows.map(row => {
