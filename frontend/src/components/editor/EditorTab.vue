@@ -145,12 +145,6 @@
                   </button>
                 </div>
                 <pre>{{ selectedQuery.sql }}</pre>
-                <div class="library-preview-actions">
-                  <button @click="applySelectedSql">替换</button>
-                  <button @click="insertSelectedSql">插入</button>
-                  <button @click="copySelectedSql">复制</button>
-                  <button class="primary" @click="executeSelectedSql">执行</button>
-                </div>
               </template>
               <span v-else class="library-preview-empty">选择一条 SQL 查看预览</span>
             </div>
@@ -414,33 +408,11 @@ function toggleAssist(mode: 'history' | 'saved') {
 
 function selectQuery(item: LibraryItem) {
   selectedQueryKey.value = item.key
+  applySql(item.sql)
 }
 
 function applySql(sql: string) {
   monacoRef.value?.setValue(sql)
-  assistMode.value = null
-}
-
-function applySelectedSql() {
-  if (!selectedQuery.value) return
-  applySql(selectedQuery.value.sql)
-}
-
-function insertSelectedSql() {
-  if (!selectedQuery.value) return
-  monacoRef.value?.insertText?.(selectedQuery.value.sql)
-  assistMode.value = null
-}
-
-async function copySelectedSql() {
-  if (!selectedQuery.value) return
-  await navigator.clipboard?.writeText(selectedQuery.value.sql)
-  ElMessage.success('已复制 SQL')
-}
-
-function executeSelectedSql() {
-  if (!selectedQuery.value) return
-  onExecute(selectedQuery.value.sql)
   assistMode.value = null
 }
 
@@ -1017,35 +989,6 @@ onUnmounted(() => {
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
-}
-
-.library-preview-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.library-preview-actions button {
-  min-height: 28px;
-  padding: 3px 10px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.library-preview-actions button:hover {
-  color: var(--accent-blue);
-  border-color: rgba(88, 166, 255, 0.45);
-}
-
-.library-preview-actions button.primary {
-  border-color: var(--accent-blue);
-  background: var(--accent-blue);
-  color: #fff;
 }
 
 .editor-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }

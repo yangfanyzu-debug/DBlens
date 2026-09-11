@@ -73,10 +73,7 @@ test('editor query library keeps large history and saved lists manageable', () =
   assert.match(editorTab, /removeSavedSql/)
   assert.match(editorTab, /library-list/)
   assert.match(editorTab, /selectedQuery/)
-  assert.match(editorTab, /applySelectedSql/)
-  assert.match(editorTab, /insertSelectedSql/)
-  assert.match(editorTab, /copySelectedSql/)
-  assert.match(editorTab, /executeSelectedSql/)
+  assert.doesNotMatch(editorTab, /library-preview-actions/)
   assert.doesNotMatch(editorTab, /query-chip/)
 })
 
