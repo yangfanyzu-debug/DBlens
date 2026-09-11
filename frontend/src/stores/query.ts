@@ -8,6 +8,8 @@ import {
 } from '@/utils/queryHistory'
 
 export interface QueryResult {
+  truncated?: boolean
+  row_limit?: number
   sql: string
   type: string
   columns: string[]

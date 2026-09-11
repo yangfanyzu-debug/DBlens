@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from typing import Optional
 from uuid import uuid4
+from threading import Event
 
 from sqlalchemy import text
 
@@ -17,6 +18,8 @@ from app.ws.manager import ws_manager
 # { query_id: (engine, db_thread_id) } for kill support
 _running: dict[str, tuple[object, int]] = {}
 _killed: set[str] = set()
+ROW_LIMIT = 500
+QUERY_TIMEOUT = 30
 
 
 def _split_statements(sql: str) -> list[str]:
@@ -66,7 +69,7 @@ def _format_query_error(engine, error: Exception) -> str:
     return f"{message}\nHint: {hint}" if hint else message
 
 
-def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str):
+def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str, expired=None):
     """Synchronous query runner — runs in thread pool to avoid blocking event loop."""
     engine = ensure_engine(conn_id)
     db_type = engine.dialect.name
@@ -75,9 +78,22 @@ def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str):
     statements = _split_statements(sql)
     results = []
     total_start = time.monotonic()
+    expired = expired or Event()
+    deadline = total_start + QUERY_TIMEOUT
+    sqlite_raw = None
+
+    def check_deadline():
+        if expired.is_set() or time.monotonic() >= deadline:
+            raise TimeoutError("查询超过 30 秒，已停止执行")
 
     try:
         with engine.connect() as conn:
+            check_deadline()
+            if db_type == "sqlite":
+                sqlite_raw = conn.connection.driver_connection
+                sqlite_raw.set_progress_handler(lambda: int(expired.is_set() or time.monotonic() >= deadline), 1000)
+            elif db_type == "postgresql":
+                conn.execute(text("SET LOCAL statement_timeout = 30000"))
             if database and db_type == "mysql":
                 conn.execute(text(f"USE `{database}`"))
             elif database and db_type == "postgresql":
@@ -88,19 +104,28 @@ def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str):
                 _running[query_id] = (engine, int(tid))
 
             for stmt in statements:
+                check_deadline()
                 stmt_start = time.monotonic()
-                result = conn.execute(text(stmt))
+                # Server-side cursors avoid buffering the full result in the driver.
+                leading_sql = re.sub(r"\A(?:\s|--[^\n]*(?:\n|$)|/\*.*?\*/)*", "", stmt, flags=re.S)
+                reads_rows = bool(re.match(r"(?i)(SELECT|WITH)\b", leading_sql))
+                if db_type == "postgresql":
+                    conn.execution_options(stream_results=False).execute(text(f"SET LOCAL statement_timeout = {max(1, int((deadline - time.monotonic()) * 1000))}"))
+                result = conn.execution_options(stream_results=db_type == "mysql" or (db_type == "postgresql" and reads_rows), max_row_buffer=ROW_LIMIT + 1).execute(text(stmt))
                 elapsed = int((time.monotonic() - stmt_start) * 1000)
 
                 stmt_type = stmt.strip().split()[0].upper() if stmt.strip() else "UNKNOWN"
                 if result.returns_rows:
                     cols = list(result.keys())
-                    rows = [list(r) for r in result.fetchall()]
+                    fetched = result.fetchmany(ROW_LIMIT + 1)
+                    rows = [list(r) for r in fetched[:ROW_LIMIT]]
                     results.append({
                         "sql": stmt, "type": stmt_type,
                         "columns": cols, "rows": rows,
                         "row_count": len(rows), "affected_rows": None,
                         "execution_ms": elapsed,
+                        "truncated": len(fetched) > ROW_LIMIT,
+                        "row_limit": ROW_LIMIT,
                     })
                 else:
                     results.append({
@@ -109,6 +134,10 @@ def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str):
                         "row_count": 0, "affected_rows": result.rowcount,
                         "execution_ms": elapsed,
                     })
+                result.close()
+                check_deadline()
+            if db_type == "sqlite":
+                sqlite_raw.set_progress_handler(None, 0)
             conn.commit()
 
         total_ms = int((time.monotonic() - total_start) * 1000)
@@ -133,6 +162,8 @@ def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str):
             "error": _format_query_error(engine, e),
         }
     finally:
+        if sqlite_raw is not None:
+            sqlite_raw.set_progress_handler(None, 0)
         _running.pop(query_id, None)
         _killed.discard(query_id)
 
@@ -152,8 +183,23 @@ async def execute_query(
         return
 
     try:
-        result = await asyncio.to_thread(_run_query_sync, conn_id, database, sql, query_id)
+        expired = Event()
+        work = asyncio.create_task(asyncio.to_thread(_run_query_sync, conn_id, database, sql, query_id, expired))
+        try:
+            result = await asyncio.wait_for(asyncio.shield(work), QUERY_TIMEOUT)
+        except asyncio.TimeoutError:
+            expired.set()
+            running = _running.get(query_id)
+            if running:
+                try:
+                    await asyncio.wait_for(asyncio.to_thread(_kill_mysql_query, *running), 2)
+                except Exception:
+                    pass
+            # Consume a late worker failure without publishing a second terminal result.
+            work.add_done_callback(lambda task: task.exception() if not task.cancelled() else None)
+            result = {"type": "result", "query_id": query_id, "status": "error", "statements": [], "total_ms": QUERY_TIMEOUT * 1000, "error": "查询超过 30 秒，已请求停止。请缩小查询范围后重试。"}
         print(f"[QE] Query done, sending result for {query_id}")
+        await ws_manager.send(query_id, result)
         if operator:
             async with AsyncSessionLocal() as db:
                 await operation_logger.record_operation(
@@ -170,7 +216,6 @@ async def execute_query(
                     error_msg=result.get("error"),
                     duration_ms=result.get("total_ms"),
                 )
-        await ws_manager.send(query_id, result)
     except Exception as e:
         print(f"[QE] Outer error: {e}")
         import traceback; traceback.print_exc()

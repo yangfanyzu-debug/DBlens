@@ -25,7 +25,12 @@ class QueryExecutorTestCase(unittest.TestCase):
             def fetchall(self):
                 return self._rows
 
+            def close(self):
+                pass
+
         class FakeConnection:
+            def execution_options(self, **kwargs):
+                return self
             def __enter__(self):
                 return self
 
@@ -61,6 +66,21 @@ class QueryExecutorTestCase(unittest.TestCase):
 
 
 class QueryKillTestCase(unittest.IsolatedAsyncioTestCase):
+    async def test_timeout_publishes_error_and_suppresses_late_success(self):
+        import asyncio
+        import time
+        from app.services import query_executor
+
+        def slow_query(*args):
+            time.sleep(0.05)
+            return {"status": "success"}
+
+        with patch.object(query_executor, "QUERY_TIMEOUT", 0.01), patch.object(query_executor, "_run_query_sync", side_effect=slow_query), patch.object(query_executor.ws_manager, "send", new=AsyncMock()) as send:
+            await query_executor.execute_query("conn-1", "", "SELECT 1", "timeout-test")
+            await asyncio.sleep(0.08)
+            self.assertEqual(send.await_count, 2)
+            self.assertEqual(send.await_args.args[1]["status"], "error")
+
     async def test_kill_query_terminates_mysql_thread_and_notifies_client(self):
         from app.services import query_executor
 
