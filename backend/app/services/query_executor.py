@@ -14,8 +14,9 @@ from app.services.connection_manager import ensure_engine
 from app.ws.manager import ws_manager
 
 
-# { query_id: db_thread_id } for kill support
-_running: dict[str, int] = {}
+# { query_id: (engine, db_thread_id) } for kill support
+_running: dict[str, tuple[object, int]] = {}
+_killed: set[str] = set()
 
 
 def _split_statements(sql: str) -> list[str]:
@@ -84,7 +85,7 @@ def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str):
 
             if db_type == "mysql":
                 tid = conn.execute(text("SELECT CONNECTION_ID()")).scalar()
-                _running[query_id] = tid
+                _running[query_id] = (engine, int(tid))
 
             for stmt in statements:
                 stmt_start = time.monotonic()
@@ -117,6 +118,13 @@ def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str):
             "total_ms": total_ms, "error": None,
         }
     except Exception as e:
+        if query_id in _killed:
+            return {
+                "type": "result", "query_id": query_id,
+                "status": "killed", "statements": results,
+                "total_ms": int((time.monotonic() - total_start) * 1000),
+                "error": None,
+            }
         import traceback; traceback.print_exc()
         return {
             "type": "result", "query_id": query_id,
@@ -126,6 +134,7 @@ def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str):
         }
     finally:
         _running.pop(query_id, None)
+        _killed.discard(query_id)
 
 
 async def execute_query(
@@ -175,10 +184,26 @@ async def execute_query(
 
 
 async def kill_query(query_id: str):
-    thread_id = _running.get(query_id)
-    if not thread_id:
+    running = _running.get(query_id)
+    if not running:
+        await ws_manager.send(query_id, {
+            "type": "result",
+            "query_id": query_id,
+            "status": "killed",
+            "statements": [],
+            "total_ms": 0,
+            "error": None,
+        })
         return
-    _running.pop(query_id, None)
+
+    engine, thread_id = running
+    _killed.add(query_id)
+    try:
+        await asyncio.to_thread(_kill_mysql_query, engine, thread_id)
+    except Exception:
+        _killed.discard(query_id)
+        raise
+
     await ws_manager.send(query_id, {
         "type": "result",
         "query_id": query_id,
@@ -187,3 +212,8 @@ async def kill_query(query_id: str):
         "total_ms": 0,
         "error": None,
     })
+
+
+def _kill_mysql_query(engine, thread_id: int):
+    with engine.connect() as conn:
+        conn.exec_driver_sql(f"KILL QUERY {int(thread_id)}")

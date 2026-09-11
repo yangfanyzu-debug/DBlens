@@ -2,11 +2,14 @@ from fastapi import WebSocket
 from typing import Dict
 import json
 from datetime import date, datetime
+from decimal import Decimal
 
 
 def _default_json(obj):
     if isinstance(obj, (date, datetime)):
         return obj.isoformat()
+    if isinstance(obj, Decimal):
+        return str(obj)
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 

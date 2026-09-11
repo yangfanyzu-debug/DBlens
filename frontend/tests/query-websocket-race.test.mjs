@@ -19,3 +19,14 @@ test('editor emits schema refresh when returned statements changed schema', () =
   assert.match(websocket, /private onResult/)
   assert.match(websocket, /this\.onResult\?\.\(data\)/)
 })
+
+test('terminal query messages close their websocket', () => {
+  assert.match(websocket, /\['success', 'error', 'killed'\]\.includes\(data\.status\)/)
+  assert.match(websocket, /this\.stop\(\)/)
+})
+
+test('editor clears running state when query start or kill completes locally', () => {
+  assert.match(editorTab, /error\?\.message \|\| '查询启动失败'/)
+  assert.match(editorTab, /status: 'killed'/)
+  assert.match(editorTab, /wsClient\?\.stop\(\)/)
+})

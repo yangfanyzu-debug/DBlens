@@ -40,6 +40,9 @@ export class QueryWebSocket {
             console.log('[WS] Parsed, type:', data.type, 'status:', data.status)
             useQueryStore().setResult(this.queryId, data)
             this.onResult?.(data)
+            if (['success', 'error', 'killed'].includes(data.status)) {
+              this.stop()
+            }
           } catch (err) {
             console.error('[WS] JSON parse error:', err, 'raw:', e.data)
           }

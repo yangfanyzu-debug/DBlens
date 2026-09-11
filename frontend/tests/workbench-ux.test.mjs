@@ -13,6 +13,7 @@ const tabBar = readFileSync(new URL('../src/components/common/TabBar.vue', impor
 const connectionsStore = readFileSync(new URL('../src/stores/connections.ts', import.meta.url), 'utf8')
 const structureView = readFileSync(new URL('../src/components/table/StructureView.vue', import.meta.url), 'utf8')
 const databaseApi = readFileSync(new URL('../src/api/databases.ts', import.meta.url), 'utf8')
+const editorToolbar = readFileSync(new URL('../src/components/editor/EditorToolbar.vue', import.meta.url), 'utf8')
 
 test('connection tree wires search and copy without list timestamps', () => {
   assert.match(connectionTree, /搜索连接、主机、库名/)
@@ -44,6 +45,12 @@ test('new query uses the database opened in the left tree when available', () =>
   assert.match(dbTree, /setActiveDatabase\(data\.connId, data\.database\)/)
   assert.match(tabBar, /openEditorTab\(connId, connectionsStore\.activeDatabaseByConn\[connId\]\)/)
   assert.match(tabBar, /new-query-btn/)
+})
+
+test('each editor only reflects its own running query', () => {
+  assert.match(editorTab, /:query-id="currentQueryId"/)
+  assert.match(editorToolbar, /getResult\(props\.queryId\)\?\.status === 'running'/)
+  assert.doesNotMatch(editorToolbar, /Object\.keys\(queryStore\.results\)/)
 })
 
 test('connection form explains edit-password behavior and offers database shortcut', () => {
