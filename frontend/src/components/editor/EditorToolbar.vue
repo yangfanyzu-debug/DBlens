@@ -39,7 +39,7 @@ import { useQueryStore } from '@/stores/query'
 import * as dbApi from '@/api/databases'
 import type { Tab } from '@/stores/tabs'
 
-const props = defineProps<{ tab: Tab }>()
+const props = defineProps<{ tab: Tab; queryId: string }>()
 const emit = defineEmits<{
   (e: 'execute'): void
   (e: 'kill'): void
@@ -52,11 +52,7 @@ const databases = ref<string[]>([])
 const currentDb = ref(props.tab.database ?? '')
 
 const isRunning = computed(() => {
-  for (const qid of Object.keys(queryStore.results)) {
-    const r = queryStore.getResult(qid)
-    if (r?.status === 'running') return true
-  }
-  return false
+  return queryStore.getResult(props.queryId)?.status === 'running'
 })
 
 watch(() => props.tab.connId, async (connId) => {

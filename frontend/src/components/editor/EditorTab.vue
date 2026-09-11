@@ -1,6 +1,6 @@
 <template>
   <div class="editor-tab">
-    <EditorToolbar :tab="tab" @execute="onExecute" @kill="onKill" @format="onFormat" @db-change="onDbChange" />
+    <EditorToolbar :tab="tab" :query-id="currentQueryId" @execute="onExecute" @kill="onKill" @format="onFormat" @db-change="onDbChange" />
     <button class="ai-floating-trigger" :class="{ 'ai-panel-open': aiPanelOpen }" type="button" title="打开 DBLens AI 助手" @click="openAiPanel">
       <span class="ai-orbit-icon" aria-hidden="true">
         <span class="ai-orbit-core" />
@@ -288,14 +288,23 @@ async function onExecute(sql?: string) {
       emitDbSchemaChanged({ connId: props.tab.connId, database: executionDb })
     }
   })
-  await wsClient.connect()
-  await queryApi.executeQuery(props.tab.connId, executionDb, code, queryId)
-  queryStore.recordHistory({
-    sql: code,
-    connId: props.tab.connId,
-    database: executionDb,
-    ran_at: Date.now(),
-  })
+  try {
+    await wsClient.connect()
+    await queryApi.executeQuery(props.tab.connId, executionDb, code, queryId)
+    queryStore.recordHistory({
+      sql: code,
+      connId: props.tab.connId,
+      database: executionDb,
+      ran_at: Date.now(),
+    })
+  } catch (error: any) {
+    wsClient.stop()
+    queryStore.setResult(queryId, {
+      status: 'error',
+      error: error?.message || '查询启动失败',
+    })
+    ElMessage.error(error?.message || '查询启动失败')
+  }
 }
 
 async function confirmRiskySql(sql: string): Promise<boolean> {
@@ -324,8 +333,21 @@ async function confirmRiskySql(sql: string): Promise<boolean> {
 }
 
 async function onKill() {
-  if (currentQueryId.value) {
-    await queryApi.killQuery(currentQueryId.value)
+  const queryId = currentQueryId.value
+  if (!queryId) return
+
+  try {
+    await queryApi.killQuery(queryId)
+    wsClient?.stop()
+    queryStore.setResult(queryId, {
+      status: 'killed',
+      statements: [],
+      total_ms: 0,
+      error: null,
+    })
+    ElMessage.success('查询已终止')
+  } catch (error: any) {
+    ElMessage.error(error?.message || '终止查询失败')
   }
 }
 
