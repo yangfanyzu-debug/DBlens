@@ -4,7 +4,9 @@ import re
 from datetime import datetime
 from typing import Optional
 from uuid import uuid4
-from threading import Event
+from threading import Event, Lock
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 
 from sqlalchemy import text
 
@@ -15,11 +17,49 @@ from app.services.connection_manager import ensure_engine
 from app.ws.manager import ws_manager
 
 
-# { query_id: (engine, db_thread_id) } for kill support
-_running: dict[str, tuple[object, int]] = {}
+@dataclass
+class RunningQuery:
+    engine: object
+    thread_id: int
+    lock: object = field(default_factory=Lock)
+    active: bool = True
+    discard_connection: bool = False
+
+
+_running: dict[str, RunningQuery] = {}
 _killed: set[str] = set()
 ROW_LIMIT = 500
 QUERY_TIMEOUT = 30
+
+
+@contextmanager
+def _query_connection(engine, query_id):
+    with engine.connect() as conn:
+        mysql_limit = None
+        try:
+            if engine.dialect.name == "mysql":
+                mysql_limit = int(conn.execute(text("SELECT @@SESSION.sql_select_limit")).scalar())
+                tid = int(conn.execute(text("SELECT CONNECTION_ID()")).scalar())
+                _running[query_id] = RunningQuery(engine, tid)
+            yield conn
+        finally:
+            state = _running.get(query_id)
+            if state:
+                # A checked-out connection cannot be reused while a cancel is sent.
+                with state.lock:
+                    state.active = False
+                    _running.pop(query_id, None)
+                    if state.discard_connection:
+                        # Even an unacknowledged KILL must never target a reused connection.
+                        conn.invalidate()
+                        mysql_limit = None
+            if mysql_limit is not None:
+                try:
+                    conn.execution_options(stream_results=False).execute(
+                        text(f"SET SESSION sql_select_limit = {mysql_limit}")
+                    )
+                except Exception:
+                    conn.invalidate()
 
 
 def _split_statements(sql: str) -> list[str]:
@@ -83,11 +123,13 @@ def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str, expire
     sqlite_raw = None
 
     def check_deadline():
+        if query_id in _killed:
+            raise RuntimeError("查询已终止")
         if expired.is_set() or time.monotonic() >= deadline:
             raise TimeoutError("查询超过 30 秒，已停止执行")
 
     try:
-        with engine.connect() as conn:
+        with _query_connection(engine, query_id) as conn:
             check_deadline()
             if db_type == "sqlite":
                 sqlite_raw = conn.connection.driver_connection
@@ -99,16 +141,17 @@ def _run_query_sync(conn_id: str, database: str, sql: str, query_id: str, expire
             elif database and db_type == "postgresql":
                 conn.execute(text(f"SET search_path TO {database}"))
 
-            if db_type == "mysql":
-                tid = conn.execute(text("SELECT CONNECTION_ID()")).scalar()
-                _running[query_id] = (engine, int(tid))
-
             for stmt in statements:
                 check_deadline()
                 stmt_start = time.monotonic()
                 # Server-side cursors avoid buffering the full result in the driver.
                 leading_sql = re.sub(r"\A(?:\s|--[^\n]*(?:\n|$)|/\*.*?\*/)*", "", stmt, flags=re.S)
                 reads_rows = bool(re.match(r"(?i)(SELECT|WITH)\b", leading_sql))
+                if db_type == "mysql":
+                    # MySQL applies this to SELECT without an explicit LIMIT.
+                    conn.execution_options(stream_results=False).execute(
+                        text(f"SET SESSION sql_select_limit = {ROW_LIMIT + 1}")
+                    )
                 if db_type == "postgresql":
                     conn.execution_options(stream_results=False).execute(text(f"SET LOCAL statement_timeout = {max(1, int((deadline - time.monotonic()) * 1000))}"))
                 result = conn.execution_options(stream_results=db_type == "mysql" or (db_type == "postgresql" and reads_rows), max_row_buffer=ROW_LIMIT + 1).execute(text(stmt))
@@ -192,7 +235,7 @@ async def execute_query(
             running = _running.get(query_id)
             if running:
                 try:
-                    await asyncio.wait_for(asyncio.to_thread(_kill_mysql_query, *running), 2)
+                    await _cancel_mysql(query_id, running)
                 except Exception:
                     pass
             # Consume a late worker failure without publishing a second terminal result.
@@ -241,13 +284,7 @@ async def kill_query(query_id: str):
         })
         return
 
-    engine, thread_id = running
-    _killed.add(query_id)
-    try:
-        await asyncio.to_thread(_kill_mysql_query, engine, thread_id)
-    except Exception:
-        _killed.discard(query_id)
-        raise
+    await _cancel_mysql(query_id, running)
 
     await ws_manager.send(query_id, {
         "type": "result",
@@ -259,6 +296,36 @@ async def kill_query(query_id: str):
     })
 
 
-def _kill_mysql_query(engine, thread_id: int):
-    with engine.connect() as conn:
-        conn.exec_driver_sql(f"KILL QUERY {int(thread_id)}")
+async def _cancel_mysql(query_id, state):
+    abandoned = Event()
+    try:
+        await asyncio.wait_for(asyncio.to_thread(_kill_mysql_query, query_id, state, abandoned), 2)
+    finally:
+        abandoned.set()
+
+
+def _kill_mysql_query(query_id, state, abandoned):
+    # Recreate retains the original connection creator (including TLS and SSH),
+    # but has no checked-out business connections to wait for.
+    pool = state.engine.pool.recreate()
+    control = None
+    try:
+        control = pool.connect()
+        control.driver_connection._read_timeout = 2
+        control.driver_connection._write_timeout = 2
+        with state.lock:
+            if abandoned.is_set() or not state.active or _running.get(query_id) is not state:
+                return
+            cursor = control.cursor()
+            try:
+                state.discard_connection = True
+                _killed.add(query_id)
+                cursor.execute(f"KILL QUERY {state.thread_id}")
+            finally:
+                cursor.close()
+    finally:
+        try:
+            if control is not None:
+                control.close()
+        finally:
+            pool.dispose()

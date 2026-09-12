@@ -76,7 +76,14 @@ function getSelectedText() {
 }
 
 function getValue() { return editor?.getValue() ?? '' }
-function setValue(value: string) { editor?.setValue(value) }
+function setValue(value: string) {
+  const model = editor?.getModel()
+  if (!editor || !model) return
+  editor.pushUndoStop()
+  editor.executeEdits('query-library', [{ range: model.getFullModelRange(), text: value }])
+  editor.pushUndoStop()
+  editor.focus()
+}
 function insertText(value: string) {
   const selection = editor?.getSelection()
   if (!editor || !selection) return

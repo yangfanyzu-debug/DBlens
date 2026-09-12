@@ -41,6 +41,8 @@ class QueryExecutorTestCase(unittest.TestCase):
                 sql = str(statement)
                 if "CONNECTION_ID" in sql:
                     return FakeResult(scalar_value=123)
+                if "@@SESSION.sql_select_limit" in sql:
+                    return FakeResult(scalar_value=18446744073709551615)
                 if "information_schema.TABLES" in sql:
                     return FakeResult(rows=[("skills",)])
                 if "SELECT * FROM SKILLS" in sql:
@@ -84,28 +86,16 @@ class QueryKillTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_kill_query_terminates_mysql_thread_and_notifies_client(self):
         from app.services import query_executor
 
-        executed = []
-
-        class FakeConnection:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, exc_type, exc, tb):
-                return False
-
-            def exec_driver_sql(self, sql):
-                executed.append(sql)
-
-        class FakeEngine:
-            def connect(self):
-                return FakeConnection()
-
-        query_executor._running["query-1"] = (FakeEngine(), 123)
+        from unittest.mock import MagicMock
+        engine = MagicMock()
+        control = engine.pool.recreate.return_value.connect.return_value
+        query_executor._running["query-1"] = query_executor.RunningQuery(engine, 123)
         try:
             with patch.object(query_executor.ws_manager, "send", new=AsyncMock()) as send:
                 await query_executor.kill_query("query-1")
 
-            self.assertEqual(executed, ["KILL QUERY 123"])
+            control.cursor.return_value.execute.assert_called_once_with("KILL QUERY 123")
+            engine.connect.assert_not_called()
             self.assertEqual(send.await_args.args[1]["status"], "killed")
         finally:
             query_executor._running.pop("query-1", None)
