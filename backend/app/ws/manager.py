@@ -10,6 +10,8 @@ def _default_json(obj):
         return obj.isoformat()
     if isinstance(obj, Decimal):
         return str(obj)
+    if isinstance(obj, (bytes, bytearray, memoryview)):
+        return f"0x{bytes(obj).hex()}"
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
